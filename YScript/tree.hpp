@@ -1,6 +1,7 @@
 #include <vector>
 #include <ostream>
 #include <string>
+#include <stack>
 
 #ifdef DEBUG_TREE
 namespace debug_tree {
@@ -87,6 +88,7 @@ struct tree {
 	{
 		tree<T> t(body, this);
 		childs.push_back(t);
+
 		return *(childs.end() - 1);
 	}
 
@@ -150,7 +152,7 @@ struct tree {
 
 			if (body.str.size())
 			{
-				floor.names[y] = body.str + ";";
+				floor.names[y] = body.str;
 				if (body.str.size() + 1 > floor.max_width)
 					floor.max_width = body.str.size();
 			}

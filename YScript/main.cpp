@@ -152,14 +152,14 @@ public:
 							if (leftover.size())
 							{
 #ifdef DEBUG_LEXING
-								std::cout << "VAL: " << leftover << std::endl;
+								std::cout << "VAL: " << leftover << '\n';
 #endif
 								tokens.push_back(Token{ TokenType::Value, leftover });
 								leftover.clear();
 							}
 							passing_count += keyword.size() - 1;
 #ifdef DEBUG_LEXING
-							std::cout << "KEY: " << keyword << std::endl;
+							std::cout << "KEY: " << keyword << '\n';
 #endif
 							tokens.push_back(Token{ TokenType::KeyWord, keyword });
 
@@ -174,14 +174,14 @@ public:
 						if (leftover.size())
 						{
 #ifdef DEBUG_LEXING
-							std::cout << "VAL: " << leftover << std::endl;
+							std::cout << "VAL: " << leftover << '\n';
 #endif
 							tokens.push_back(Token{ TokenType::Value, leftover });
 							leftover.clear();
 						}
 						passing_count += op.size() - 1;
 #ifdef DEBUG_LEXING
-						std::cout << "OPE: " << op << std::endl;
+						std::cout << "OPE: " << op << '\n';
 #endif
 						tokens.push_back(Token{ TokenType::Operator, op });
 						goto next_loop;
@@ -211,7 +211,7 @@ public:
 					if (leftover.size())
 					{
 #ifdef DEBUG_LEXING
-						std::cout << "VAL: " << leftover << std::endl;
+						std::cout << "VAL: " << leftover << '\n';
 #endif
 						tokens.push_back(Token{ TokenType::Value, leftover });
 						leftover.clear();
@@ -237,7 +237,7 @@ public:
 				{
 					lexing_state = LexingState::Logic;
 #ifdef DEBUG_LEXING
-					std::cout << "VAL: " << "\"" << string_builder << "\"" << std::endl;
+					std::cout << "VAL: " << "\"" << string_builder << "\"" << '\n';
 #endif
 					tokens.push_back(Token{ TokenType::Value, string_builder });
 					string_builder.clear();
@@ -276,55 +276,216 @@ public:
 		for (const Token& token : tokens)
 		{
 			std::cout << token.str << " ";
-			if (token.str == ";") std::cout << std::endl;
+			if (token.str == ";") std::cout << '\n';
 		}
-		std::cout << std::endl << "===========================" << std::endl;
+		std::cout << '\n' << "===========================" << '\n';
 #endif
 		tree<Token> logic{ Token{TokenType::Structure, "root"} };
 
 		itr = tokens.cbegin();
 		now = (*itr);
 
-		while (itr != tokens.cend())
-		{
-			if (now.token == TokenType::KeyWord)
+		try {
+			while (itr != tokens.cend())
 			{
-				if (now.str == "function")
+				if (now.token == TokenType::KeyWord)
 				{
-					auto& func_model = logic.push_back(Token{ TokenType::KeyWord, "function" });
-
-					if (next_or_exit(tokens)) throw std::exception("Unexcepted EOF");
-					if (now.token != TokenType::Value) throw std::exception("Unexcepted Identifier");
-					func_model.push_back(now);
-
-					if (next_or_exit(tokens)) throw std::exception("Unexcepted EOF");;
-					if (now != Token{ TokenType::Operator, "(" }) throw std::exception("Unexcepted Identifier");
-
-					auto& arguments = func_model.push_back(Token{ TokenType::Structure, "arguments" });
-
-					std::vector<Token> argument_infomation = {};
-					while (true)
+					if (now.str == "function")
 					{
+						auto& func_model = logic.push_back(Token{ TokenType::KeyWord, "function" });
+
 						if (next_or_exit(tokens)) throw std::exception("Unexcepted EOF");
-						if (now == Token{ TokenType::Operator, ")" }) break;
-						if (now == Token{ TokenType::Operator, "," }) {
-							if (argument_infomation.size() == 1)
-							{
-								arguments.push_back(argument_infomation.at(0));
+						if (now.token != TokenType::Value) throw std::exception("Unexcepted Identifier");
+						func_model.push_back(now);
+
+						if (next_or_exit(tokens)) throw std::exception("Unexcepted EOF");;
+						if (now != Token{ TokenType::Operator, "(" }) throw std::exception("Unexcepted Identifier");
+
+						auto& arguments = func_model.push_back(Token{ TokenType::Structure, "arguments" });
+
+						std::vector<Token> argument_infomation = {};
+						while (true)
+						{
+							if (next_or_exit(tokens)) throw std::exception("Unexcepted EOF");
+							if (now == Token{ TokenType::Operator, ")" }) {
+								if (argument_infomation.size() == 0) break;
+								if (argument_infomation.size() == 1) arguments.push_back(argument_infomation.at(0));
+								else throw std::exception("Unexcepted Syntax");
+								break;
 							}
-							else throw std::exception("Unexcepted Syntax");
-							argument_infomation.clear();
-							continue;
+							if (now == Token{ TokenType::Operator, "," }) {
+								if (argument_infomation.size() == 1) arguments.push_back(argument_infomation.at(0));
+								else throw std::exception("Unexcepted Syntax");
+
+								argument_infomation.clear();
+								continue;
+							}
+							argument_infomation.push_back(now);
 						}
-						argument_infomation.push_back(now);
+
+						if (next_or_exit(tokens) || now != Token{ TokenType::Operator, "{" }) throw std::exception("Unexcepted EOF");
+
+						std::stack<tree<Token>*> stack;
+						std::stack<std::string> statement;
+						auto& body = func_model.push_back(Token{ TokenType::Structure, "body" });
+						stack.push(&body);
+						statement.push("function");
+
+						while (stack.size())
+						{
+							if (next_or_exit(tokens)) goto exit;
+
+							if (now == Token{ TokenType::KeyWord, "var" }) {
+								if (next_or_exit(tokens)) throw std::exception("Unexcepted EOF");
+								auto& define_var = stack.top()->push_back(Token{ TokenType::Structure, "Define" });
+								define_var.push_back(now);
+
+								if (next_or_exit(tokens)) throw std::exception("Unexcepted EOF");
+								if (now != Token{ TokenType::Operator, "=" }) throw std::exception("Unexcepted Syntax");
+
+								stack.push(&define_var.push_back(Token{ TokenType::Structure, "var-body" }));
+								statement.push("var");
+							}
+							else if (now == Token{ TokenType::KeyWord, "if" }) {
+								auto& keyword = stack.top()->push_back(now);
+								auto& expr = keyword.push_back({ TokenType::Structure, "if-statement" });
+
+								if (next_or_exit(tokens)) throw std::exception("Unexcepted Syntax");
+								if (now != Token{ TokenType::Operator, "(" }) throw std::exception("Unexcepted Syntax");
+
+								while (true)
+								{
+									if (next_or_exit(tokens)) throw std::exception("Unexcepted Syntax");
+									if (now == Token{ TokenType::Operator, ")" }) break;
+									expr.push_back(now);
+								}
+
+								stack.push(&keyword.push_back({ TokenType::Structure, "if-body" }));
+								keyword.push_back({ TokenType::KeyWord, "else-body" });
+								statement.push("if");
+							}
+							else if (now == Token{ TokenType::KeyWord, "else" })
+							{
+								if (stack.top()->childs.rbegin()->body == Token{ TokenType::KeyWord,"if" })
+								{
+									stack.push(&stack.top()->childs.rbegin()->childs.at(2));
+									statement.push("else");
+								}
+								else throw std::exception("Unexcepted Syntax");
+							}
+							else if (now == Token{ TokenType::KeyWord, "do" }) {
+								auto& keyword = stack.top()->push_back(now);
+								keyword.push_back({ TokenType::Structure, "do-statement" });
+								stack.push(&keyword.push_back({ TokenType::Structure, "do-body" }));
+								statement.push("do");
+							}
+							else if (now == Token{ TokenType::KeyWord, "while" }) {
+								if (stack.top()->childs.rbegin()->body == Token{ TokenType::Structure,"do" })
+								{
+									stack.push(stack.top()->childs.rbegin()->childs.begin()._Ptr);
+
+									if (next_or_exit(tokens)) throw std::exception("Unexcepted Syntax");
+									if (now != Token{ TokenType::Operator, "(" }) throw std::exception("Unexcepted Syntax");
+									while (true)
+									{
+										if (next_or_exit(tokens)) throw std::exception("Unexcepted Syntax");
+										if (now == Token{ TokenType::Operator, ")" }) break;
+										stack.top()->childs.push_back(now);
+									}
+
+									stack.pop();
+
+									if (next_or_exit(tokens)) throw std::exception("Unexcepted Syntax");
+									if (now != Token{ TokenType::Operator, ";" }) throw std::exception("Unexcepted Syntax");
+									stack.top()->childs.push_back(now);
+								}
+								else
+								{
+									auto& keyword = stack.top()->push_back(now);
+									auto& expr = keyword.push_back({ TokenType::Structure, "while-statement" });
+
+									if (next_or_exit(tokens)) throw std::exception("Unexcepted Syntax");
+									if (now != Token{ TokenType::Operator, "(" }) throw std::exception("Unexcepted Syntax");
+									while (true)
+									{
+										if (next_or_exit(tokens)) throw std::exception("Unexcepted Syntax");
+										if (now == Token{ TokenType::Operator, ")" }) break;
+										expr.push_back(now);
+									}
+
+									stack.push(&keyword.push_back({ TokenType::KeyWord, "while-body" }));
+									statement.push("while");
+								}
+							}
+							else if (now == Token{ TokenType::KeyWord, "for" }) {
+								auto& keyword = stack.top()->push_back(now);
+								auto& init_expr = keyword.push_back({ TokenType::Structure, "for-init-statement" });
+								auto& cnd_expr = keyword.push_back({ TokenType::Structure, "for-condition-statement" });
+								auto& incr_expr = keyword.push_back({ TokenType::Structure, "for-increment-statement" });
+
+								if (next_or_exit(tokens)) throw std::exception("Unexcepted Syntax");
+								if (now != Token{ TokenType::Operator, "(" }) throw std::exception("Unexcepted Syntax");
+
+								while (true)
+								{
+									if (next_or_exit(tokens)) throw std::exception("Unexcepted Syntax");
+									if (now == Token{ TokenType::Operator, ";" }) break;
+									init_expr.push_back(now);
+								}
+								while (true)
+								{
+									if (next_or_exit(tokens)) throw std::exception("Unexcepted Syntax");
+									if (now == Token{ TokenType::Operator, ";" }) break;
+									cnd_expr.push_back(now);
+								}
+								while (true)
+								{
+									if (next_or_exit(tokens)) throw std::exception("Unexcepted Syntax");
+									if (now == Token{ TokenType::Operator, ")" }) break;
+									incr_expr.push_back(now);
+								}
+
+								stack.push(&keyword.push_back({ TokenType::Structure, "for-body" }));
+								statement.push("while");
+							}
+							else if (now == Token{ TokenType::Operator, "{" }) {
+								if (is_statement(statement.top()))
+									statement.top() += "{}";
+								else
+								{
+									stack.push(&stack.top()->push_back(Token{ TokenType::Structure, "{}" }));
+									statement.push("{}");
+								}
+							}
+							else if (now == Token{ TokenType::Operator, "}" }) {
+								if (statement.size() && is_extended_statement(statement.top()))
+								{
+									stack.pop();
+									statement.pop();
+								}
+								stack.pop();
+								statement.pop();
+							}
+							else if (now == Token{ TokenType::Operator, ";" }) {
+								if (statement.size() && is_statement(statement.top()))
+								{
+									stack.pop();
+									statement.pop();
+								}
+							}
+							else {
+								stack.top()->push_back(now);
+							}
+						}
 					}
-
-					auto& body = func_model.push_back(Token{ TokenType::Structure, "body" });
 				}
-			}
-			if (next_or_exit(tokens)) goto exit;
-		};
-
+				if (next_or_exit(tokens)) goto exit;
+			};
+		}
+		catch (std::exception)
+		{
+			std::cout << "Error!" << '\n';
+		}
 	exit:;
 	{
 		debug_tree::TreeAnalyzeData* tad = new debug_tree::TreeAnalyzeData();
@@ -343,8 +504,20 @@ private:
 			return true;
 		now = (*itr);
 		std::cout << now.str << " ";
-		if (now.str == ";") std::cout << std::endl;
+		if (now.str == ";") std::cout << '\n';
 		return false;
+	}
+
+	bool is_statement(const std::string& str)
+	{
+		return str == "do" || str == "if" || str == "else" || str == "var" || str == "while";
+	}
+
+	bool is_extended_statement(const std::string& str)
+	{
+		if ((*str.crbegin() + 1) == '{' && (*str.crbegin()) == '}')
+			return is_statement(str.substr(str.size() - 2));
+		else return false;
 	}
 };
 
