@@ -2,6 +2,12 @@
 #include <ostream>
 #include <string>
 #include <stack>
+#include <unordered_map>
+#include <iostream>
+
+#define DEBUG_TREE
+
+#ifndef __TREE__
 
 #ifdef DEBUG_TREE
 namespace debug_tree {
@@ -20,7 +26,7 @@ namespace debug_tree {
 
 	struct TreeAnalyzeData {
 		std::vector<DebugFloorData> floors;
-		size_t max_height = 0;
+		size_t max_height = 1;
 
 		void Draw(std::ostream& out)
 		{
@@ -77,19 +83,23 @@ namespace debug_tree {
 
 template <typename T>
 struct tree {
-	std::vector<tree<T>> childs;
+	std::list<tree<T>*> childs;
 	T body;
-	tree<T>* root;
 
-	tree<T>(T body, tree<T>* root = nullptr) : root(root), body(body) {
+	tree<T>(T body) : body(body) {
 	}
 
-	tree<T>& push_back(const T& body)
+	tree<T>* push_back(const T& body)
 	{
-		tree<T> t(body, this);
-		childs.push_back(t);
+		childs.push_back(new tree<T>(body));
+		return *(--childs.end());
+	}
 
-		return *(childs.end() - 1);
+	~tree<T>() {
+		for (tree<T>* child : childs)
+		{
+			delete child;
+		}
 	}
 
 #ifdef DEBUG_TREE
@@ -102,14 +112,14 @@ struct tree {
 			size_t position = -1;
 			size_t child_begin_position = -1;
 			size_t child_end_position = -1;
-			for (tree<T> child : childs)
+			for (tree<T>* child : childs)
 			{
 				if (required_space != -1)
 					y_for_child += 2;
 				if (x + 1 >= data->floors.size())
 					data->floors.push_back(debug_tree::DebugFloorData());
 
-				debug_tree::PrintData ret = child.analyze(data, x + 1, y_for_child);
+				debug_tree::PrintData ret = child->analyze(data, x + 1, y_for_child);
 
 				if (required_space == -1)
 					child_begin_position = ret.its_position;
@@ -164,5 +174,22 @@ struct tree {
 			return debug_tree::PrintData{ 1, y };
 		}
 	}
+	int get_depth(int y = 0)
+	{
+		if (childs.size() > 0)
+		{
+			int max = 0;
+			for (tree<T>* child : childs)
+			{
+				int k = child->get_depth(y + 1);
+				if (k > max) max = k;
+			}
+			return max;
+		}
+		else return y + 1;
+	}
 #endif
 };
+
+#define __TREE__
+#endif

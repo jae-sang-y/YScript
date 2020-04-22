@@ -143,10 +143,14 @@
     <None Include="sample.js" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="main.cpp" />
+    <ClCompile Include="expr_builder.cpp" />
+    <ClCompile Include="lexer.cpp" />
+    <ClCompile Include="logic_builder.cpp" />
+    <ClCompile Include="yscript.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="tree.hpp" />
+    <ClInclude Include="yscript.hpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
