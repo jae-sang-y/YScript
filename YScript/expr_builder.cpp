@@ -23,7 +23,7 @@ ExpressionEncoder::ExpressionEncoder(std::vector<Token> tokens, tree<YScript::To
 
 #ifdef DEBUG_EXPRESSION_ENCODER
 	debug_tree::TreeAnalyzeData* tad = new debug_tree::TreeAnalyzeData();
-	size_t y = 0;
+	uint64_t y = 0;
 	tad->max_height = expr_tree.get_depth(1);
 	expr_tree.analyze(tad, 0, y);
 	tad->Draw(std::cout);
@@ -102,6 +102,7 @@ tree<Token>* ExpressionEncoder::read_operators(tree<Token>* parent, tree<Token>*
 
 			root->childs.erase(std::prev(itr));
 			root->childs.erase(std::next(itr));
+			child->body.type = TokenType::Caculation;
 		}
 	}
 
@@ -114,7 +115,7 @@ tree<Token>* ExpressionEncoder::read_operators(tree<Token>* parent, tree<Token>*
 			{
 				if (auto prev_itr = std::prev(itr); (*prev_itr)->body.type != TokenType::Operator)
 				{
-					child->body.str = "call";
+					child->body = Token{ TokenType::Structure, "Call" };
 
 					for (auto itr = child->childs.begin(); itr != child->childs.end(); ++itr)
 						if ((*itr)->body == Token{ TokenType::Operator, "," })
@@ -123,8 +124,13 @@ tree<Token>* ExpressionEncoder::read_operators(tree<Token>* parent, tree<Token>*
 					child->childs.push_front(*prev_itr);
 
 					root->childs.erase(std::prev(itr));
+					continue;
 				}
 			} //else is_a_normal_brackets
+			else if (child->childs.size() > 1)
+			{
+				child->body.str = "Tuple";
+			}
 		}
 		else if (child->body == Token{ TokenType::Structure, "[]" })
 		{
@@ -132,7 +138,7 @@ tree<Token>* ExpressionEncoder::read_operators(tree<Token>* parent, tree<Token>*
 			{
 				if (auto prev_itr = std::prev(itr); (*prev_itr)->body.type != TokenType::Operator)
 				{
-					child->body.str = "subscript";
+					child->body = Token{ TokenType::Caculation, "subscript" };
 
 					for (auto itr = child->childs.begin(); itr != child->childs.end(); ++itr)
 						if ((*itr)->body == Token{ TokenType::Operator, "," })
@@ -141,8 +147,17 @@ tree<Token>* ExpressionEncoder::read_operators(tree<Token>* parent, tree<Token>*
 					child->childs.push_front(*prev_itr);
 
 					root->childs.erase(std::prev(itr));
+					child->body.type = TokenType::Caculation;
 				}
 			} //else is_a_normal_brackets
+			else
+			{
+				child->body.str = "List";
+			}
+		}
+		else if (child->body == Token{ TokenType::Structure, "{}" })
+		{
+			child->body.str = "Dict";
 		}
 	}
 
@@ -188,14 +203,15 @@ tree<Token>* ExpressionEncoder::read_operators(tree<Token>* parent, tree<Token>*
 								root->body.str += "-right";
 							}
 						}
+						child->body.type = TokenType::Caculation;
 						break;
 					}
 				}
 			}
 		}
-		else
+		else if (root->childs.size())
 		{
-			for (auto itr = --root->childs.end();; ++itr)
+			for (auto itr = --root->childs.end();; --itr)
 			{
 				tree<Token>* child = (*itr);
 				for (const std::string op : op_precede.operators)
@@ -233,11 +249,47 @@ tree<Token>* ExpressionEncoder::read_operators(tree<Token>* parent, tree<Token>*
 								root->body.str += "-right";
 							}
 						}
+						child->body.type = TokenType::Caculation;
 						break;
 					}
 				}
 				if (itr == root->childs.begin()) break;
 			}
+		}
+	}
+
+	static std::map<std::string, std::string> inplace_operators =
+	{
+		{"=", "Assign"},
+		{"+=", "Inplace_Add"},
+		{"-=", "Inplace_Sub"},
+		{"*=", "Inplace_Mul"},
+		{"/=", "Inplace_Div"},
+		{"%=", "Inplace_Mod"},
+		{"**=", "Inplace_Pow"},
+	};
+
+	if (root->childs.size())
+	{
+		for (auto itr = --root->childs.end();; --itr)
+		{
+			tree<Token>* child = (*itr);
+			for (auto& pair : inplace_operators)
+			{
+				if (child->body == Token{ TokenType::Operator, pair.first })
+				{
+					child->body = Token{ TokenType::Structure, pair.second };
+					tree<Token>* left = *std::prev(itr);
+					tree<Token>* right = *std::next(itr);
+
+					child->childs.push_back(left);
+					child->childs.push_back(right);
+
+					root->childs.erase(std::prev(itr));
+					root->childs.erase(std::next(itr));
+				}
+			}
+			if (itr == root->childs.begin()) break;
 		}
 	}
 
@@ -256,20 +308,16 @@ tree<Token>* ExpressionEncoder::read_operators(tree<Token>* parent, tree<Token>*
 
 			root->childs.erase(std::prev(itr));
 			root->childs.erase(std::next(itr));
+			child->body.type = TokenType::Caculation;
 		}
 	}
 
-	if (end_token == '}' || end_token == ')')
+	if (end_token == '}' || end_token == ')' || end_token == ']')
 	{
 		for (auto itr = root->childs.begin(); itr != root->childs.end(); ++itr)
 		{
 			if ((*itr)->body == Token{ TokenType::Operator, "," })
 				root->childs.erase(itr--);
-		}
-		if (end_token == ')')
-		{
-			root;
-			int i = 0;
 		}
 	}
 

@@ -2,7 +2,13 @@
 
 using namespace YScript;
 
+inline bool is_num(const char& ch)
+{
+	return ch >= '0' && ch <= '9';
+}
+
 Lexer::Lexer(std::string::const_iterator begin, std::string::const_iterator end) {
+	bool num_flag = false;
 	for (std::string::const_iterator csr = begin; csr != end; ++csr)
 	{
 		if (passing_count > 0)
@@ -36,30 +42,15 @@ Lexer::Lexer(std::string::const_iterator begin, std::string::const_iterator end)
 				goto next_loop;
 			}
 
-			if (leftover.size() == 0)
+			if (num_flag)
 			{
-				for (const auto& keyword : __keywords__)
+				if (is_num(*csr) || *csr == '.')
 				{
-					if (match(keyword, csr, end))
-					{
-						if (leftover.size())
-						{
-#ifdef DEBUG_LEXING
-							std::cout << "VAL: " << leftover << '\n';
-#endif
-							tokens.push_back(Token{ TokenType::Value, leftover });
-							leftover.clear();
-						}
-						passing_count += keyword.size() - 1;
-#ifdef DEBUG_LEXING
-						std::cout << "KEY: " << keyword << '\n';
-#endif
-						tokens.push_back(Token{ TokenType::KeyWord, keyword });
-
-						goto next_loop;
-					}
+					leftover.push_back(*csr);
+					goto next_loop;
 				}
 			}
+
 			for (const auto& op : __ops__)
 			{
 				if (op.size() > 1 && match(op, csr, end) || op.size() == 1 && *csr == op.at(0))
@@ -69,8 +60,26 @@ Lexer::Lexer(std::string::const_iterator begin, std::string::const_iterator end)
 #ifdef DEBUG_LEXING
 						std::cout << "VAL: " << leftover << '\n';
 #endif
-						tokens.push_back(Token{ TokenType::Value, leftover });
+						bool is_keyword = false;
+						for (const auto& keyword : __keywords__)
+						{
+							if (leftover == keyword)
+							{
+#ifdef DEBUG_LEXING
+								std::cout << "KEY: " << keyword << '\n';
+#endif
+								tokens.push_back(Token{ TokenType::KeyWord, keyword });
+								is_keyword = true;
+								break;
+							}
+						}
+						if (!is_keyword)
+							if (num_flag)
+								tokens.push_back(Token{ TokenType::Literal, leftover });
+							else
+								tokens.push_back(Token{ TokenType::Value, leftover });
 						leftover.clear();
+						num_flag = false;
 					}
 					passing_count += op.size() - 1;
 #ifdef DEBUG_LEXING
@@ -88,12 +97,33 @@ Lexer::Lexer(std::string::const_iterator begin, std::string::const_iterator end)
 #ifdef DEBUG_LEXING
 					std::cout << "VAL: " << leftover << '\n';
 #endif
-					tokens.push_back(Token{ TokenType::Value, leftover });
+
+					bool is_keyword = false;
+					for (const auto& keyword : __keywords__)
+					{
+						if (leftover == keyword)
+						{
+#ifdef DEBUG_LEXING
+							std::cout << "KEY: " << keyword << '\n';
+#endif
+							tokens.push_back(Token{ TokenType::KeyWord, keyword });
+							is_keyword = true;
+							break;
+						}
+					}
+					if (!is_keyword)
+						if (num_flag)
+							tokens.push_back(Token{ TokenType::Literal, leftover });
+						else
+							tokens.push_back(Token{ TokenType::Value, leftover });
 					leftover.clear();
+					num_flag = false;
 				}
 			}
 			else
 			{
+				if (!num_flag && leftover.size() == 0 && is_num(*csr))
+					num_flag = true;
 				leftover.push_back(*csr);
 			}
 		}
@@ -115,7 +145,7 @@ Lexer::Lexer(std::string::const_iterator begin, std::string::const_iterator end)
 #ifdef DEBUG_LEXING
 				std::cout << "VAL: " << "\"" << string_builder << "\"" << '\n';
 #endif
-				tokens.push_back(Token{ TokenType::Value, string_builder });
+				tokens.push_back(Token{ TokenType::Literal, "\"" + string_builder + "\"" });
 				string_builder.clear();
 				goto next_loop;
 			}

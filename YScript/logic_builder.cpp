@@ -2,7 +2,7 @@
 
 using namespace YScript;
 
-//#define DEBUG_LOGIC_BUILDER
+#define DEBUG_LOGIC_BUILDER
 
 bool LogicBuilder::next_or_exit(const std::list<Token>& tokens) {
 	++itr;
@@ -122,7 +122,9 @@ LogicBuilder::LogicBuilder(const std::list<Token>& tokens) {
 								expr_list.clear();
 							}
 
+#ifdef DEBUG_LOGIC_BUILDER
 							std::cout << "\n==if-body==\n";
+#endif
 							stack.push(keyword->push_back({ TokenType::Structure, "if-body" }));
 							keyword->push_back({ TokenType::Structure, "else-body" });
 						}
@@ -130,7 +132,9 @@ LogicBuilder::LogicBuilder(const std::list<Token>& tokens) {
 						{
 							if ((*stack.top()->childs.rbegin())->body == Token{ TokenType::KeyWord,"if" })
 							{
+#ifdef DEBUG_LOGIC_BUILDER
 								std::cout << "\n==else-body==\n";
+#endif
 								stack.push(*(++++(*stack.top()->childs.rbegin())->childs.begin()));
 							}
 							else throw std::exception("Unexcepted Syntax");
@@ -138,7 +142,9 @@ LogicBuilder::LogicBuilder(const std::list<Token>& tokens) {
 						else if (now == Token{ TokenType::KeyWord, "do" }) {
 							auto keyword = stack.top()->push_back(now);
 							keyword->push_back({ TokenType::Structure, "do-statement" });
+#ifdef DEBUG_LOGIC_BUILDER
 							std::cout << "\n==do-body==\n";
+#endif
 							stack.push(keyword->push_back({ TokenType::Structure, "do-body" }));
 						}
 						else if (now == Token{ TokenType::KeyWord, "while" }) {
@@ -186,7 +192,9 @@ LogicBuilder::LogicBuilder(const std::list<Token>& tokens) {
 									expr_list.clear();
 								}
 
+#ifdef DEBUG_LOGIC_BUILDER
 								std::cout << "\n==while-body==\n";
+#endif
 								stack.push(keyword->push_back({ TokenType::Structure, "while-body" }));
 							}
 						}
@@ -235,20 +243,23 @@ LogicBuilder::LogicBuilder(const std::list<Token>& tokens) {
 								ExpressionEncoder ee{ expr_list, incr_expr };
 								expr_list.clear();
 							}
-
+#ifdef DEBUG_LOGIC_BUILDER
 							std::cout << "\n==body==\n";
+#endif
 							stack.push(keyword->push_back({ TokenType::Structure, "for-body" }));
 						}
 						else if (now == Token{ TokenType::Operator, "{" }) {
+#ifdef DEBUG_LOGIC_BUILDER
 							std::cout << "\n=={}==\n";
+#endif
 							stack.push(stack.top()->push_back(Token{ TokenType::Structure, "{}" }));
 						}
 						else if (now == Token{ TokenType::Operator, "}" }) {
 							if (stack.top()->body == Token{ TokenType::Structure, "{}" })
 							{
+#ifdef DEBUG_LOGIC_BUILDER
 								std::cout << "\n==}{==\n";
-
-								std::cout << "\n===pop===\n";
+#endif
 								stack.pop();
 								if (stack.top()->body == Token{ TokenType::Structure, "for-body" } ||
 									stack.top()->body == Token{ TokenType::Structure, "do-body" } ||
@@ -256,12 +267,17 @@ LogicBuilder::LogicBuilder(const std::list<Token>& tokens) {
 									stack.top()->body == Token{ TokenType::Structure, "if-body" } ||
 									stack.top()->body == Token{ TokenType::Structure, "else-body" })
 								{
+#ifdef DEBUG_LOGIC_BUILDER
 									std::cout << "\n===pop===\n";
+#endif
 									stack.pop();
 								}
 							}
 							else
 							{
+#ifdef DEBUG_LOGIC_BUILDER
+								std::cout << "\n===pop===\n";
+#endif
 								stack.pop();
 							}
 						}
@@ -277,17 +293,22 @@ LogicBuilder::LogicBuilder(const std::list<Token>& tokens) {
 								stack.top()->body == Token{ TokenType::Structure, "if-body" } ||
 								stack.top()->body == Token{ TokenType::Structure, "else-body" })
 							{
+#ifdef DEBUG_LOGIC_BUILDER
 								std::cout << "\n===pop===\n";
+#endif
 								stack.pop();
 							}
+#ifdef DEBUG_LOGIC_BUILDER
 							std::cout << "\n==;==\n";
+#endif
 						}
 						else {
 							expr_list.push_back(now);
-							//stack.top()->push_back(now);
 						}
 					}
+#ifdef DEBUG_LOGIC_BUILDER
 					std::cout << "\n===out of function===\n";
+#endif
 				}
 			}
 			if (next_or_exit(tokens)) goto exit;
@@ -301,7 +322,7 @@ exit:;
 {
 #ifdef DEBUG_LOGIC_BUILDER
 	debug_tree::TreeAnalyzeData* tad = new debug_tree::TreeAnalyzeData();
-	size_t y = 0;
+	uint64_t y = 0;
 	logic.analyze(tad, 0, y);
 
 	tad->Draw(std::cout);

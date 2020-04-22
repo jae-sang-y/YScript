@@ -1,16 +1,21 @@
-function ABC(a,c)
+function ABC()
 {
-	var a = 1;	
+	var a = 0;
+	a += 1;
+	print(a);
+
+
+	/*var a = 1;	
 	if (a) ;
 	else if (a) a= 2;
 	else {
 		yield;
-	}
-	a = a.toString();
-	var ex = 5 - ((2 + (a + 1) + 3) + 4) * 2;
-	var c = 2 + a * 3 - (3 / 7);
-	a(b(1), 2 + 3, 3);
-	
+	}*/
+	//a = a.toString();
+	//var ex = 5 - ((2 + (a + 1) + 3) + 4) * 2;
+	//var c = 2 + a * 3 - (3 / 7);
+	//a(b(1), 2 + 3, 3);
+	/*
 	var c = {
 	  'raw_data': {
 		'과목': '모프',
@@ -18,7 +23,7 @@ function ABC(a,c)
 		'차시': '7',
 		'주제': '프로젝트 기획안  작성 -1\n서비스 분석 -1',
 		'학습방법': '과제형',
-		'ZOOM ID': None,
+		'ZOOM ID': null,
 		'클래스룸': '6helmii'
 	  },
 	  'class_name': '모바일웹프로그래밍',
@@ -37,7 +42,7 @@ function ABC(a,c)
 	var d = (2 + a) * 3 / 2;
 
 	
-	for (;b < 6; ++b++)
+	for (;b < 6; ++b)
 	{
 	}
 	
@@ -45,7 +50,7 @@ function ABC(a,c)
 	
 	while(d != 0) d = 0;
 	
-	"string!";
+	"string!";*/
 }
 
 function Random () {

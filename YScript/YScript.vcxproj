@@ -146,6 +146,7 @@
     <ClCompile Include="expr_builder.cpp" />
     <ClCompile Include="lexer.cpp" />
     <ClCompile Include="logic_builder.cpp" />
+    <ClCompile Include="assembler.cpp" />
     <ClCompile Include="yscript.cpp" />
   </ItemGroup>
   <ItemGroup>

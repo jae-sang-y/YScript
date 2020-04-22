@@ -1,6 +1,7 @@
 #pragma once
 
 #include <list>
+#include <map>
 
 #include "tree.hpp"
 
@@ -84,7 +85,8 @@ namespace YScript
 		Operator,
 		Caculation,
 		KeyWord,
-		Value
+		Value,
+		Literal
 	};
 
 	struct Token {
@@ -99,14 +101,13 @@ namespace YScript
 	public:
 		std::list<Token> tokens;
 		Lexer(std::string::const_iterator begin, std::string::const_iterator end);
+		bool static match(const std::string& token, std::string::const_iterator itr, std::string::const_iterator end);
+		bool static is_space(char ch);
 	private:
 		LexingState lexing_state = LexingState::Logic;
-		size_t passing_count = 0;
+		uint64_t passing_count = 0;
 		std::string leftover = "";
 		std::string string_builder = "";
-
-		bool match(const std::string& token, std::string::const_iterator itr, std::string::const_iterator end);
-		bool is_space(char ch);
 	};
 
 	class LogicBuilder {
@@ -137,19 +138,11 @@ namespace YScript
 				true, false, true
 			},
 			OperatorPrecedence{
-				std::vector<std::string>{"++", "--"},
-				true, true, false
-			},
-			OperatorPrecedence{
 				std::vector<std::string>{"*", "/", "%"},
 				true, true, true
 			},
 			OperatorPrecedence{
 				std::vector<std::string>{"+", "-"},
-				true, true, true
-			},
-			OperatorPrecedence{
-				std::vector<std::string>{"=", "+=", "-=", "*=", "/=", "%=", "!="},
 				true, true, true
 			},
 		};
@@ -161,6 +154,9 @@ namespace YScript
 	class Assembler {
 	public:
 		Assembler(const tree<Token>& logic);
+	private:
+		void process_expression(const tree<Token>* expr, uint64_t depth, uint64_t passing);
+		std::vector<std::string> bytecodes;
 	};
 
 	class ScriptEngine {
@@ -170,6 +166,26 @@ namespace YScript
 			Lexer lexer(content.cbegin(), content.cend());
 			LogicBuilder logic_builder(lexer.tokens);
 			Assembler assembler{ logic_builder.logic };
+		}
+	};
+
+	static enum YObjectType : uint64_t {
+		Null = 1, Bool, I32, String, Bytes, F32,
+		List,
+		Dict,
+		Tuple,
+		Function,
+		Class
+	};
+	static uint64_t yobject_incr = 0;
+	struct YObject {
+		const uint64_t type_id = 0;
+		const uint64_t object_id = ++yobject_incr;
+		bool is_rightvalue = true;
+		void* const data = nullptr;
+		YObject(YObjectType type, void* const data) : data(data), type_id(type) {}
+		~YObject() {
+			delete data;
 		}
 	};
 }

@@ -12,21 +12,21 @@
 #ifdef DEBUG_TREE
 namespace debug_tree {
 	struct PrintData {
-		size_t required_space = -1;
-		size_t its_position = -1;
+		uint64_t required_space = -1;
+		uint64_t its_position = -1;
 	};
 
 	struct DebugFloorData {
-		std::unordered_map<size_t, std::string> names = std::unordered_map<size_t, std::string>();
-		std::unordered_map<size_t, uint8_t> brackets = std::unordered_map<size_t, uint8_t>();
-		size_t max_width = 4;
+		std::unordered_map<uint64_t, std::string> names = std::unordered_map<uint64_t, std::string>();
+		std::unordered_map<uint64_t, uint8_t> brackets = std::unordered_map<uint64_t, uint8_t>();
+		uint64_t max_width = 4;
 		constexpr static uint8_t OPEN = 1;
 		constexpr static uint8_t CLOSE = 2;
 	};
 
 	struct TreeAnalyzeData {
 		std::vector<DebugFloorData> floors;
-		size_t max_height = 1;
+		uint64_t max_height = 1;
 
 		void Draw(std::ostream& out)
 		{
@@ -34,7 +34,7 @@ namespace debug_tree {
 			std::vector<bool> rains;
 			rains.resize(max_height + 1);
 
-			for (size_t y = 0; y <= max_height; ++y)
+			for (uint64_t y = 0; y <= max_height; ++y)
 			{
 				int x = -1;
 				for (const DebugFloorData& floor : floors)
@@ -55,7 +55,7 @@ namespace debug_tree {
 					if (const auto itr = floor.names.find(y); itr != floor.names.end())
 					{
 						out << itr->second;
-						for (size_t k = itr->second.size(); k <= floor.max_width; ++k) out << " ";
+						for (uint64_t k = itr->second.size(); k <= floor.max_width; ++k) out << " ";
 						if (rains.at(x))
 							out << "| ";
 						else
@@ -63,7 +63,7 @@ namespace debug_tree {
 					}
 					else
 					{
-						for (size_t k = 0; k < floor.max_width; ++k) out << " ";
+						for (uint64_t k = 0; k < floor.max_width; ++k) out << " ";
 						if (rains.at(x))
 							out << " | ";
 						else
@@ -103,15 +103,15 @@ struct tree {
 	}
 
 #ifdef DEBUG_TREE
-	debug_tree::PrintData analyze(debug_tree::TreeAnalyzeData* data, size_t x, size_t& y)
+	debug_tree::PrintData analyze(debug_tree::TreeAnalyzeData* data, uint64_t x, uint64_t& y)
 	{
 		if (childs.size() > 0)
 		{
-			size_t y_for_child = y;
-			size_t required_space = -1;
-			size_t position = -1;
-			size_t child_begin_position = -1;
-			size_t child_end_position = -1;
+			uint64_t y_for_child = y;
+			uint64_t required_space = -1;
+			uint64_t position = -1;
+			uint64_t child_begin_position = -1;
+			uint64_t child_end_position = -1;
 			for (tree<T>* child : childs)
 			{
 				if (required_space != -1)
