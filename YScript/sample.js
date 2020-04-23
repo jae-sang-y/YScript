@@ -1,28 +1,19 @@
 function ABC()
 {
+	print("Hello Wrold");
 	a = 0;
-	a += 1;
-	print(a);
+	for(; a < 3; ++a)
+		print(a);
 
-	for (b = 0; b < 3; ++b)
-	{
-		print(b);
-	}
-
-	b = 10;
-	while (b < 14)
-	{
-		print(b);
-		b += 1;
-	}
-	
-	b = 20;
-	do
-	{
-		print(b);
-		b += 1;
-	}
-	while (b < 24);
+	a= 5;
+	while (a < 7) {
+		print(++a);
+	//}
+	//a= 10;
+	//do {
+//		print(a);
+		//a += 1;
+	//} while (a < 12);
 
 	/*var a = 1;	
 	if (a) ;

@@ -3,6 +3,7 @@
 using namespace YScript;
 
 //#define DEBUG_LOGIC_BUILDER
+//#define DEBUG_LOGIC_BUILDER_TREE
 
 bool LogicBuilder::next_or_exit(const std::list<Token>& tokens) {
 	++itr;
@@ -79,29 +80,6 @@ LogicBuilder::LogicBuilder(const std::list<Token>& tokens) {
 					{
 						if (next_or_exit(tokens)) goto exit;
 
-						/*if (now == Token{ TokenType::KeyWord, "var" }) {
-							if (next_or_exit(tokens)) throw std::exception("Unexcepted EOF");
-							auto define_var = stack.top()->push_back(Token{ TokenType::Structure, "Define" });
-							define_var->push_back(now);
-
-							if (next_or_exit(tokens)) throw std::exception("Unexcepted EOF");
-							if (now != Token{ TokenType::Operator, "=" }) throw std::exception("Unexcepted Syntax");
-
-							auto* var_body = define_var->push_back(Token{ TokenType::Structure, "var-body" });
-
-							if (expr_list.size()) throw std::exception("Unexcepted Syntax");
-							while (true)
-							{
-								if (next_or_exit(tokens)) throw std::exception("Unexcepted Syntax");
-								if (now == Token{ TokenType::Operator, ";" }) break;
-								expr_list.push_back(now);
-							}
-
-							if (expr_list.size() == 0) throw std::exception("Unexcepted Syntax");
-							ExpressionEncoder ee{ expr_list, var_body };
-							expr_list.clear();
-						}
-						else */
 						if (now == Token{ TokenType::KeyWord, "if" }) {
 							auto keyword = stack.top()->push_back(now);
 							auto* if_statement = keyword->push_back({ TokenType::Structure, "if-statement" });
@@ -286,6 +264,7 @@ LogicBuilder::LogicBuilder(const std::list<Token>& tokens) {
 						else if (now == Token{ TokenType::Operator, ";" }) {
 							if (expr_list.size() > 0)
 							{
+								expr_list.push_back(now);
 								ExpressionEncoder ee{ expr_list, stack.top() };
 								expr_list.clear();
 							}
@@ -322,8 +301,8 @@ LogicBuilder::LogicBuilder(const std::list<Token>& tokens) {
 	//}
 exit:;
 {
-#ifdef DEBUG_LOGIC_BUILDER
-	debug_tree::TreeAnalyzeData* tad = new debug_tree::TreeAnalyzeData();
+#ifdef DEBUG_LOGIC_BUILDER_TREE
+	debug_tree::TreeAnalyzeData* tad = NEW debug_tree::TreeAnalyzeData();
 	uint64_t y = 0;
 	logic.analyze(tad, 0, y);
 

@@ -7,6 +7,12 @@
 
 #define DEBUG_TREE
 
+#ifdef _DEBUG
+#define NEW new ( _NORMAL_BLOCK , __FILE__ , __LINE__ )
+#else
+#define NEW new
+#endif
+
 #ifndef __TREE__
 
 #ifdef DEBUG_TREE
@@ -91,7 +97,7 @@ struct tree {
 
 	tree<T>* push_back(const T& body)
 	{
-		childs.push_back(new tree<T>(body));
+		childs.push_back(NEW tree<T>(body));
 		return *(--childs.end());
 	}
 

@@ -15,20 +15,20 @@ ExpressionEncoder::ExpressionEncoder(std::vector<Token> tokens, tree<YScript::To
 #endif
 	tree<Token> expr_tree{ Token{TokenType::Structure, "root"} };
 	read_brackets(tokens, &expr_tree);
-	for (auto itr = expr_tree.childs.begin(); itr != expr_tree.childs.end(); ++itr)
-	{
-		target->childs.push_back(*itr);
-		(*itr) = nullptr;
-	}
-
 #ifdef DEBUG_EXPRESSION_ENCODER
-	debug_tree::TreeAnalyzeData* tad = new debug_tree::TreeAnalyzeData();
+	debug_tree::TreeAnalyzeData* tad = NEW debug_tree::TreeAnalyzeData();
 	uint64_t y = 0;
 	tad->max_height = expr_tree.get_depth(1);
 	expr_tree.analyze(tad, 0, y);
 	tad->Draw(std::cout);
 	delete tad;
 #endif
+
+	for (auto itr = expr_tree.childs.begin(); itr != expr_tree.childs.end(); ++itr)
+	{
+		target->childs.push_back(*itr);
+		(*itr) = nullptr;
+	}
 }
 
 void ExpressionEncoder::read_brackets(std::vector<Token> tokens, tree<Token>* root) {

@@ -4,6 +4,13 @@
 #include <map>
 
 #include "tree.hpp"
+#include <Windows.h>
+
+#ifdef _DEBUG
+#define NEW new ( _NORMAL_BLOCK , __FILE__ , __LINE__ )
+#else
+#define NEW new
+#endif
 
 #ifndef __YSCRIPT__
 
@@ -80,6 +87,29 @@ namespace YScript
 		CommentLines
 	};
 
+	static enum YObjectType : uint64_t {
+		Null = 1, Bool, I32, String, Bytes, F32,
+		List,
+		Dict,
+		Tuple,
+		Function,
+		Class
+	};
+
+	static std::map<uint64_t, std::string> YObjectTypename = {
+		{YObjectType::Null, "Null"},
+		{YObjectType::Bool, "Bool"},
+		{YObjectType::I32, "I32"},
+		{YObjectType::String, "String"},
+		{YObjectType::Bytes, "Bytes"},
+		{YObjectType::F32, "F32"},
+		{YObjectType::List, "List"},
+		{YObjectType::Dict, "Dict"},
+		{YObjectType::Tuple, "Tuple"},
+		{YObjectType::Function, "Function"},
+		{YObjectType::Class, "Class"},
+	};
+
 	enum class TokenType {
 		Structure,
 		Operator,
@@ -95,6 +125,39 @@ namespace YScript
 	};
 	bool operator == (const Token& left, const Token& right);
 	bool operator != (const Token& left, const Token& right);
+
+	static uint64_t yobject_incr = 0;
+	struct YObject {
+		const uint64_t type_id = 0;
+		const uint64_t object_id = ++yobject_incr;
+		bool is_volatility = true;
+		void* const data = nullptr;
+		YObject(const uint64_t type, void* const data) : data(data), type_id(type) {
+			char buffer[256];
+			sprintf_s(buffer, "CREATE 0x%08X \t0x%p\n", object_id, this);
+			OutputDebugStringA(buffer);
+		}
+		~YObject() {
+			char buffer[256];
+			sprintf_s(buffer, "DELETE 0x%08X \t0x%p\n", object_id, this);
+			OutputDebugStringA(buffer);
+			if (data != nullptr)
+				delete data;
+		}
+	};
+
+	struct GlobalBinding {
+		std::map<uint64_t, std::map<std::string, YObject*>> value_map;
+		GlobalBinding() {
+			value_map[5]["print"] = NEW YObject(YObjectType::Function, NEW uint64_t(0x01));
+			value_map[5]["print"]->is_volatility = false;
+		}
+		~GlobalBinding() {
+			for (auto& page : value_map)
+				for (auto value : page.second)
+					delete value.second;
+		}
+	};
 
 	class Lexer
 	{
@@ -166,9 +229,20 @@ namespace YScript
 	class Assembler {
 	public:
 		Assembler(const tree<Token>& logic);
-	private:
-		void process_expression(const tree<Token>* expr, uint64_t depth, uint64_t passing);
 		std::vector<std::string> bytecodes;
+	private:
+		//
+		GlobalBinding* global = nullptr;
+
+		void process_expression(const tree<Token>* expr, uint64_t depth, uint64_t passing);
+	};
+
+	class Executor {
+	public:
+		Executor(GlobalBinding* const  global, const std::vector<std::string>& bytecodes);
+	private:
+		std::stack<YObject*> stack;
+		GlobalBinding* global = nullptr;
 	};
 
 	class ScriptEngine {
@@ -178,29 +252,20 @@ namespace YScript
 			Lexer lexer(content.cbegin(), content.cend());
 			LogicBuilder logic_builder(lexer.tokens);
 			Assembler assembler{ logic_builder.logic };
+			Executor executor{ &global , assembler.bytecodes };
 		}
+	private:
+		GlobalBinding global = {};
 	};
 
-	static enum YObjectType : uint64_t {
-		Null = 1, Bool, I32, String, Bytes, F32,
-		List,
-		Dict,
-		Tuple,
-		Function,
-		Class
-	};
-	static uint64_t yobject_incr = 0;
-	struct YObject {
-		const uint64_t type_id = 0;
-		const uint64_t object_id = ++yobject_incr;
-		bool is_rightvalue = true;
-		void* const data = nullptr;
-		YObject(uint64_t type, void* const data) : data(data), type_id(type) {}
-		~YObject() {
-			delete data;
-		}
-	};
-}
+	std::string literal_encode(const std::string& src);
+	YObject* literal_decode(const std::string& src);
+	std::string __repr__(YObject* obj);
+	YObject* casting(YObject* obj, const uint64_t target);
+	YObject* deepcopy(const YObject* src);
+	YObject* operand(const std::string& op, YObject* lhs, YObject* rhs);
+	std::string print(YObject** obj, size_t number);
+};
 
 #define __YSCRIPT__
 #endif

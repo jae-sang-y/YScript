@@ -143,6 +143,8 @@
     <None Include="sample.js" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="built-in_function.cpp" />
+    <ClCompile Include="executor.cpp" />
     <ClCompile Include="expr_builder.cpp" />
     <ClCompile Include="lexer.cpp" />
     <ClCompile Include="logic_builder.cpp" />

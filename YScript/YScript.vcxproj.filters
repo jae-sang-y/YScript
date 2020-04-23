@@ -35,6 +35,12 @@
     <ClCompile Include="assembler.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="executor.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="built-in_function.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="tree.hpp">
