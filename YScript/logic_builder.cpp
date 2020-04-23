@@ -2,7 +2,7 @@
 
 using namespace YScript;
 
-#define DEBUG_LOGIC_BUILDER
+//#define DEBUG_LOGIC_BUILDER
 
 bool LogicBuilder::next_or_exit(const std::list<Token>& tokens) {
 	++itr;
@@ -79,7 +79,7 @@ LogicBuilder::LogicBuilder(const std::list<Token>& tokens) {
 					{
 						if (next_or_exit(tokens)) goto exit;
 
-						if (now == Token{ TokenType::KeyWord, "var" }) {
+						/*if (now == Token{ TokenType::KeyWord, "var" }) {
 							if (next_or_exit(tokens)) throw std::exception("Unexcepted EOF");
 							auto define_var = stack.top()->push_back(Token{ TokenType::Structure, "Define" });
 							define_var->push_back(now);
@@ -101,7 +101,8 @@ LogicBuilder::LogicBuilder(const std::list<Token>& tokens) {
 							ExpressionEncoder ee{ expr_list, var_body };
 							expr_list.clear();
 						}
-						else if (now == Token{ TokenType::KeyWord, "if" }) {
+						else */
+						if (now == Token{ TokenType::KeyWord, "if" }) {
 							auto keyword = stack.top()->push_back(now);
 							auto* if_statement = keyword->push_back({ TokenType::Structure, "if-statement" });
 
@@ -148,7 +149,7 @@ LogicBuilder::LogicBuilder(const std::list<Token>& tokens) {
 							stack.push(keyword->push_back({ TokenType::Structure, "do-body" }));
 						}
 						else if (now == Token{ TokenType::KeyWord, "while" }) {
-							if (auto do_root = (*stack.top()->childs.rbegin()); do_root->body == Token{ TokenType::Structure,"do" })
+							if (auto do_root = (*stack.top()->childs.rbegin()); do_root->body == Token{ TokenType::KeyWord,"do" })
 							{
 								if (next_or_exit(tokens)) throw std::exception("Unexcepted Syntax");
 								if (now != Token{ TokenType::Operator, "(" }) throw std::exception("Unexcepted Syntax");
@@ -173,6 +174,7 @@ LogicBuilder::LogicBuilder(const std::list<Token>& tokens) {
 							}
 							else
 							{
+								auto do_root2 = (*stack.top()->childs.rbegin());
 								auto keyword = stack.top()->push_back(now);
 								auto* while_statement = keyword->push_back({ TokenType::Structure, "while-statement" });
 

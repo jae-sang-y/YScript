@@ -190,7 +190,7 @@ tree<Token>* ExpressionEncoder::read_operators(tree<Token>* parent, tree<Token>*
 								tree<Token>* left = *std::prev(itr);
 								child->childs.push_back(left);
 								root->childs.erase(std::prev(itr));
-								root->body.str += "-left";
+								child->body.str += ":suffix";
 							}
 						}
 						else if (op_precede.right_op)
@@ -200,7 +200,7 @@ tree<Token>* ExpressionEncoder::read_operators(tree<Token>* parent, tree<Token>*
 								tree<Token>* right = *std::next(itr);
 								child->childs.push_back(right);
 								root->childs.erase(std::next(itr));
-								root->body.str += "-right";
+								child->body.str += ":prefix";
 							}
 						}
 						child->body.type = TokenType::Caculation;
@@ -236,7 +236,7 @@ tree<Token>* ExpressionEncoder::read_operators(tree<Token>* parent, tree<Token>*
 								tree<Token>* left = *std::prev(itr);
 								child->childs.push_back(left);
 								root->childs.erase(std::prev(itr));
-								root->body.str += "-left";
+								child->body.str += ":suffix";
 							}
 						}
 						else if (op_precede.right_op)
@@ -246,7 +246,7 @@ tree<Token>* ExpressionEncoder::read_operators(tree<Token>* parent, tree<Token>*
 								tree<Token>* right = *std::next(itr);
 								child->childs.push_back(right);
 								root->childs.erase(std::next(itr));
-								root->body.str += "-right";
+								child->body.str += ":prefix";
 							}
 						}
 						child->body.type = TokenType::Caculation;
@@ -309,6 +309,16 @@ tree<Token>* ExpressionEncoder::read_operators(tree<Token>* parent, tree<Token>*
 			root->childs.erase(std::prev(itr));
 			root->childs.erase(std::next(itr));
 			child->body.type = TokenType::Caculation;
+		}
+		else if (child->body == Token{ TokenType::Caculation, "++:prefix" })
+		{
+			child->body = Token{ TokenType::Structure, "Inplace_Add" };
+			child->push_back(Token{ TokenType::Literal, "1" });
+		}
+		else if (child->body == Token{ TokenType::Caculation, "--:prefix" })
+		{
+			child->body = Token{ TokenType::Structure, "Inplace_Sub" };
+			child->push_back(Token{ TokenType::Literal, "1" });
 		}
 	}
 

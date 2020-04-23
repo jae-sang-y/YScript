@@ -1,9 +1,28 @@
 function ABC()
 {
-	var a = 0;
+	a = 0;
 	a += 1;
 	print(a);
 
+	for (b = 0; b < 3; ++b)
+	{
+		print(b);
+	}
+
+	b = 10;
+	while (b < 14)
+	{
+		print(b);
+		b += 1;
+	}
+	
+	b = 20;
+	do
+	{
+		print(b);
+		b += 1;
+	}
+	while (b < 24);
 
 	/*var a = 1;	
 	if (a) ;

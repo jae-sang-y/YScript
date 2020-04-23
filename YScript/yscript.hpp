@@ -134,8 +134,12 @@ namespace YScript
 
 		std::vector<OperatorPrecedence> op_precedences = {
 			OperatorPrecedence{
-				std::vector<std::string>{"++", "--"},
+				std::vector<std::string>{"!", "+ ", "-", "++", "--"},
 				true, false, true
+			},
+			OperatorPrecedence{
+				std::vector<std::string>{"**"},
+				true, true, true
 			},
 			OperatorPrecedence{
 				std::vector<std::string>{"*", "/", "%"},
@@ -143,6 +147,14 @@ namespace YScript
 			},
 			OperatorPrecedence{
 				std::vector<std::string>{"+", "-"},
+				true, true, true
+			},
+			OperatorPrecedence{
+				std::vector<std::string>{">", ">=", "<", "<="},
+				true, true, true
+			},
+			OperatorPrecedence{
+				std::vector<std::string>{"==", "!="},
 				true, true, true
 			},
 		};
@@ -183,7 +195,7 @@ namespace YScript
 		const uint64_t object_id = ++yobject_incr;
 		bool is_rightvalue = true;
 		void* const data = nullptr;
-		YObject(YObjectType type, void* const data) : data(data), type_id(type) {}
+		YObject(uint64_t type, void* const data) : data(data), type_id(type) {}
 		~YObject() {
 			delete data;
 		}
