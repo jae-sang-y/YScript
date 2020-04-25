@@ -1,32 +1,7 @@
 function ABC()
 {
-	print("Hello Wrold");
-	a = 0;
-	for(; a < 3; ++a)
-		print(a);
-
-	a= 5;
-	while (a < 7) {
-		print(++a);
-	//}
-	//a= 10;
-	//do {
-//		print(a);
-		//a += 1;
-	//} while (a < 12);
-
-	/*var a = 1;	
-	if (a) ;
-	else if (a) a= 2;
-	else {
-		yield;
-	}*/
-	//a = a.toString();
-	//var ex = 5 - ((2 + (a + 1) + 3) + 4) * 2;
-	//var c = 2 + a * 3 - (3 / 7);
-	//a(b(1), 2 + 3, 3);
-	/*
-	var c = {
+	print(1, 2, 3, abc = 5, str="ABC");
+	/*c = {
 	  'raw_data': {
 		'과목': '모프',
 		'담당교사': '이석',
@@ -45,7 +20,26 @@ function ABC()
 	  'teachers': ['이석'],
 	  'objective': '과제형',
 	  'teacher_list': '이석우'
-	};
+	};*/
+	//}
+	//a= 10;
+	//do {
+//		print(a);
+		//a += 1;
+	//} while (a < 12);
+
+	/*var a = 1;	
+	if (a) ;
+	else if (a) a= 2;
+	else {
+		yield;
+	}*/
+	//a = a.toString();
+	//var ex = 5 - ((2 + (a + 1) + 3) + 4) * 2;
+	//var c = 2 + a * 3 - (3 / 7);
+	//a(b(1), 2 + 3, 3);
+	/*
+	
 
 	var b = a + 3;
 	var o8 = (1 + 2) * 3;

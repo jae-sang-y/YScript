@@ -2,6 +2,8 @@
 
 #include <list>
 #include <map>
+#include <memory>
+#include <functional>
 
 #include "tree.hpp"
 #include <Windows.h>
@@ -16,6 +18,63 @@
 
 namespace YScript
 {
+	typedef int32_t I32;
+	typedef float Float;
+	typedef std::string String;
+
+	namespace YObjectType
+	{
+		static enum  YObjectType : uint64_t {
+			Null = 1, Bool, I32, F32, String, Bytes,
+			List, Dict, Tuple, Set,
+			Built_In_Function, Function,
+			Class, Instance, Method,
+			Type
+		};
+	};
+
+	static std::map<uint64_t, String> YObjectTypenames = {
+		{YObjectType::Null, "Null"},
+		{YObjectType::Bool, "Bool"},
+		{YObjectType::I32, "I32"},
+		{YObjectType::String, "String"},
+		{YObjectType::Bytes, "Bytes"},
+		{YObjectType::F32, "F32"},
+		{YObjectType::List, "List"},
+		{YObjectType::Dict, "Dict"},
+		{YObjectType::Tuple, "Tuple"},
+		{YObjectType::Set, "Set"},
+		{YObjectType::Function, "Function"},
+		{YObjectType::Class, "Class"},
+	};
+
+	static uint64_t yobject_incr = 0;
+	struct YObject {
+		const uint64_t type_id = 0;
+		const uint64_t object_id = ++yobject_incr;
+		void* const data = nullptr;
+		std::vector<std::pair<String, std::shared_ptr<YObject>>> attrs;
+		YObject(const uint64_t type, void* const data) : data(data), type_id(type) {
+			char buffer[256];
+			sprintf_s(buffer, "CREATE 0x%08X \t0x%p\n", object_id, this);
+			OutputDebugStringA(buffer);
+		}
+		~YObject() {
+			char buffer[256];
+			sprintf_s(buffer, "DELETE 0x%08X \t0x%p\n", object_id, this);
+			OutputDebugStringA(buffer);
+			if (data != nullptr)
+				delete data;
+		}
+	};
+
+	typedef std::shared_ptr<YObject> YPtr;
+	bool operator == (YPtr lhs, YPtr rhs);
+	typedef std::vector<std::pair<YPtr, YPtr>> Dict;
+	typedef std::vector<YPtr> Tuple;
+	typedef std::vector<YPtr> Set;
+	typedef std::vector<YPtr> List;
+
 	const static std::list<std::string> __keywords__ = {
 		"function",
 		"for",
@@ -23,10 +82,11 @@ namespace YScript
 		"do",
 		"else",
 		"if",
+		"in",
 		"var",
 		"break",
 		"continue",
-		"yield"
+		"null", "true", "false",
 	};
 
 	const static std::list<std::string> __ops__ = {
@@ -87,29 +147,6 @@ namespace YScript
 		CommentLines
 	};
 
-	static enum YObjectType : uint64_t {
-		Null = 1, Bool, I32, String, Bytes, F32,
-		List,
-		Dict,
-		Tuple,
-		Function,
-		Class
-	};
-
-	static std::map<uint64_t, std::string> YObjectTypename = {
-		{YObjectType::Null, "Null"},
-		{YObjectType::Bool, "Bool"},
-		{YObjectType::I32, "I32"},
-		{YObjectType::String, "String"},
-		{YObjectType::Bytes, "Bytes"},
-		{YObjectType::F32, "F32"},
-		{YObjectType::List, "List"},
-		{YObjectType::Dict, "Dict"},
-		{YObjectType::Tuple, "Tuple"},
-		{YObjectType::Function, "Function"},
-		{YObjectType::Class, "Class"},
-	};
-
 	enum class TokenType {
 		Structure,
 		Operator,
@@ -126,38 +163,22 @@ namespace YScript
 	bool operator == (const Token& left, const Token& right);
 	bool operator != (const Token& left, const Token& right);
 
-	static uint64_t yobject_incr = 0;
-	struct YObject {
-		const uint64_t type_id = 0;
-		const uint64_t object_id = ++yobject_incr;
-		bool is_volatility = true;
-		void* const data = nullptr;
-		YObject(const uint64_t type, void* const data) : data(data), type_id(type) {
-			char buffer[256];
-			sprintf_s(buffer, "CREATE 0x%08X \t0x%p\n", object_id, this);
-			OutputDebugStringA(buffer);
-		}
-		~YObject() {
-			char buffer[256];
-			sprintf_s(buffer, "DELETE 0x%08X \t0x%p\n", object_id, this);
-			OutputDebugStringA(buffer);
-			if (data != nullptr)
-				delete data;
-		}
-	};
-
 	struct GlobalBinding {
-		std::map<uint64_t, std::map<std::string, YObject*>> value_map;
-		GlobalBinding() {
-			value_map[5]["print"] = NEW YObject(YObjectType::Function, NEW uint64_t(0x01));
-			value_map[5]["print"]->is_volatility = false;
-		}
-		~GlobalBinding() {
-			for (auto& page : value_map)
-				for (auto value : page.second)
-					delete value.second;
-		}
+		std::map<uint64_t, std::map<std::string, YPtr>> value_map;
+		YPtr const_true = std::make_shared<YObject>(YObjectType::Bool, new bool(true));
+		YPtr const_false = std::make_shared<YObject>(YObjectType::Bool, new bool(false));
+		YPtr const_null = std::make_shared<YObject>(YObjectType::Null, nullptr);
+
+		YPtr literal_decode(const std::string& src);
+		std::string __repr__(YPtr obj);
+		YPtr casting(YPtr obj, const uint64_t target);
+		YPtr deepcopy(const YPtr src);
+		YPtr operand(const std::string& op, YPtr lhs, YPtr rhs);
+
+		GlobalBinding();
 	};
+	typedef std::function<YPtr(GlobalBinding*, YPtr, YPtr)> BuiltInFunction;
+	std::string literal_encode(const std::string& src);
 
 	class Lexer
 	{
@@ -231,17 +252,15 @@ namespace YScript
 		Assembler(const tree<Token>& logic);
 		std::vector<std::string> bytecodes;
 	private:
-		//
 		GlobalBinding* global = nullptr;
-
-		void process_expression(const tree<Token>* expr, uint64_t depth, uint64_t passing);
+		void process_expression(const tree<Token>* expr, uint64_t depth, uint64_t passing, uint64_t count);
 	};
 
 	class Executor {
 	public:
 		Executor(GlobalBinding* const  global, const std::vector<std::string>& bytecodes);
 	private:
-		std::stack<YObject*> stack;
+		std::stack<YPtr> stack;
 		GlobalBinding* global = nullptr;
 	};
 
@@ -257,14 +276,6 @@ namespace YScript
 	private:
 		GlobalBinding global = {};
 	};
-
-	std::string literal_encode(const std::string& src);
-	YObject* literal_decode(const std::string& src);
-	std::string __repr__(YObject* obj);
-	YObject* casting(YObject* obj, const uint64_t target);
-	YObject* deepcopy(const YObject* src);
-	YObject* operand(const std::string& op, YObject* lhs, YObject* rhs);
-	std::string print(YObject** obj, size_t number);
 };
 
 #define __YSCRIPT__

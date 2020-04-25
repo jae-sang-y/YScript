@@ -66,6 +66,13 @@ void ExpressionEncoder::read_brackets(std::vector<Token> tokens, tree<Token>* ro
 			read_operators((*stack.rbegin() - 1), (*stack.rbegin()), ']');
 			stack.pop_back();
 		}
+		else if (token == Token{ TokenType::KeyWord, "null" } ||
+			token == Token{ TokenType::KeyWord, "true" } ||
+			token == Token{ TokenType::KeyWord, "false" })
+		{
+			token.type = TokenType::Literal;
+			(*stack.rbegin())->push_back(token);
+		}
 		else if (token == Token{ TokenType::Operator, "}" })
 		{
 			if ((*stack.rbegin())->body != Token{ TokenType::Structure, "{}" })
@@ -102,7 +109,7 @@ tree<Token>* ExpressionEncoder::read_operators(tree<Token>* parent, tree<Token>*
 
 			root->childs.erase(std::prev(itr));
 			root->childs.erase(std::next(itr));
-			child->body.type = TokenType::Caculation;
+			child->body = Token{ TokenType::Structure, "LOAD_ATTR" };
 		}
 	}
 
@@ -120,7 +127,8 @@ tree<Token>* ExpressionEncoder::read_operators(tree<Token>* parent, tree<Token>*
 					for (auto itr = child->childs.begin(); itr != child->childs.end(); ++itr)
 						if ((*itr)->body == Token{ TokenType::Operator, "," })
 							child->childs.erase(itr--);
-
+						else if ((*itr)->body == Token{ TokenType::Structure, "Assign" })
+							(*itr)->body = Token{ TokenType::Structure, "FUNCTION_KEYWORD" };
 					child->childs.push_front(*prev_itr);
 
 					root->childs.erase(std::prev(itr));
@@ -148,16 +156,20 @@ tree<Token>* ExpressionEncoder::read_operators(tree<Token>* parent, tree<Token>*
 
 					root->childs.erase(std::prev(itr));
 					child->body.type = TokenType::Caculation;
+					continue;
 				}
 			} //else is_a_normal_brackets
-			else
-			{
-				child->body.str = "List";
-			}
+
+			child->body.str = "List";
 		}
 		else if (child->body == Token{ TokenType::Structure, "{}" })
 		{
 			child->body.str = "Dict";
+			for (auto childofchild : child->childs)
+			{
+				if (childofchild->body == Token{ TokenType::Caculation, ":" })
+					childofchild->body = Token{ TokenType::Caculation, "INSERT_PAIR" };
+			}
 		}
 	}
 
@@ -203,7 +215,7 @@ tree<Token>* ExpressionEncoder::read_operators(tree<Token>* parent, tree<Token>*
 								child->body.str += ":prefix";
 							}
 						}
-						child->body.type = TokenType::Caculation;
+						else child->body.type = TokenType::Caculation;
 						break;
 					}
 				}

@@ -3,7 +3,7 @@
 using namespace YScript;
 
 //#define DEBUG_LOGIC_BUILDER
-//#define DEBUG_LOGIC_BUILDER_TREE
+#define DEBUG_LOGIC_BUILDER_TREE
 
 bool LogicBuilder::next_or_exit(const std::list<Token>& tokens) {
 	++itr;
@@ -228,13 +228,13 @@ LogicBuilder::LogicBuilder(const std::list<Token>& tokens) {
 #endif
 							stack.push(keyword->push_back({ TokenType::Structure, "for-body" }));
 						}
-						else if (now == Token{ TokenType::Operator, "{" }) {
+						else if (now == Token{ TokenType::Operator, "{" } && expr_list.size() == 0) {
 #ifdef DEBUG_LOGIC_BUILDER
 							std::cout << "\n=={}==\n";
 #endif
 							stack.push(stack.top()->push_back(Token{ TokenType::Structure, "{}" }));
 						}
-						else if (now == Token{ TokenType::Operator, "}" }) {
+						else if (now == Token{ TokenType::Operator, "}" } && expr_list.size() == 0) {
 							if (stack.top()->body == Token{ TokenType::Structure, "{}" })
 							{
 #ifdef DEBUG_LOGIC_BUILDER
