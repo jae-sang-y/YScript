@@ -30,7 +30,7 @@
 + dict는 Data를 Key<YPtr>:Value<YPtr> 형태로 가지는 type이다.
 ## YJS 004 Built-in적 행동(생성, Operator)에서 호출되는 함수의 이름들
 모든 Type는 이러한 함수를 Attributes에 가지고 있을수 있다.
-+ __new__: Data를 메모리에 할당하고 Instance를 만든다.
++ ____new____: Data를 메모리에 할당하고 Instance를 만든다.
 + __init__:  Instance 에 대해 Type가 Attributes를 처리해준다.
 + __gt__: 두 Instances 간의 ‘<’ 연산을 Type가 처리해준다.
 + __ge__: 두 Instances 간의 ‘<=’ 연산을 Type가 처리해준다.
