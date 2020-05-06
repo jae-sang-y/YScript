@@ -10,7 +10,7 @@
 + 익스큐터에서는 Bytecodes를 통해 실행을 한다.
 ## YJS 001 YObject의 정의
 + String은 UTF8의 uint8_t의 배열을 의미한다.
-+ YObject는 YScript내의 정보 저장에서 원소이다.
++ YObject는 YScript내에서 원소적인 정보 저장의 단위이다.
 + YObject는 Type, Data, Attributes, const 여부를 가지고 있다.
 + YObject는 YPtr을 통해 정보의 생성과 소멸을 관리한다.
 + Type는 YPtr 이며, Data는 void*, Attribute는 Key<String>:Value<YPtr> 형태이고.
