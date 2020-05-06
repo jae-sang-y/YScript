@@ -20,7 +20,7 @@
 + 이때 type의 Attributes는 Instance도 가지고 이를 상속이라한다.
 + Instacne에 같은 Key를 가진 Attribute가 있다면 Type의 Attribute는 사용하지 않으며 이를 Overloading이라고 한다.
 ## YJS 003 Built-in types의 정의
-+ type는 스스로를 Type로 가지는 type 이다.
++ type는 스스로를 Type로 가지는 type 이다. Data로 String을 가진다.
 + null는 Data를 가지지 않는 type이다.
 + bool는 Data를 bool 형태로 가지는 type이다.
 + str는 Data를 String 형태로 가지는 type이다.
