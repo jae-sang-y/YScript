@@ -16,9 +16,9 @@
 + Type는 YPtr 이며, Data는 void*, Attribute는 Key<String>:Value<YPtr> 형태이고.
 + is_const는 bool 형태이다.
 ## YJS 002 Type와 Instance의 관계와 Attribute
-+ type를 통해 YObject를 만들수 있고 결과물을 Instance라고 한다.
-+ 이때 type의 Attributes는 YObject의 Attributes도 가지고 이를 상속이라한다.
-+ YObject에 같은 Key를 가진 Attribute가 있다면 Type의 Attribute는 사용하지 않으며 이를 Overloading이라고 한다.
++ type를 통해 YObject를 만들수 있고 이때 만들어진 결과물을 Instance라고 한다.
++ 이때 type의 Attributes는 Instance도 가지고 이를 상속이라한다.
++ Instacne에 같은 Key를 가진 Attribute가 있다면 Type의 Attribute는 사용하지 않으며 이를 Overloading이라고 한다.
 ## YJS 003 Built-in types의 정의
 + type는 스스로를 Type로 가지는 YPtr 이다.
 + null는 Data를 가지지 않는 type이다.
