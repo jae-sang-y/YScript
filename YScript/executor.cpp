@@ -2,23 +2,13 @@
 
 using namespace YScript;
 
-#define DEBUG_EXECUTER
+//#define DEBUG_EXECUTER
 //#define DEBUG_EXECUTER_STACK
 
-Executor::Executor(GlobalBinding* const  global, const std::vector<std::string>& bytecodes)
+Executor::Executor(GlobalBinding* const  global, const std::string& namespace_name, const Code& bytecodes)
 {
 	this->global = global;
-#ifdef DEBUG_EXECUTER_STACK
-	for (uint64_t k = 0; k < bytecodes.size(); ++k)
-	{
-		const std::string command = bytecodes[k].substr(0, bytecodes[k].find('\t'));
-		const std::string argument = bytecodes[k].substr(bytecodes[k].find('\t') + 1);
-#ifdef DEBUG_EXECUTER
-		std::cout << (1000000 + k) << "  " << command << "\t" << argument << '\n';
-#endif
-	}
-#endif
-	std::cout << "Run Script\n";
+	this->local_value_map = &global->local_value_map[namespace_name];
 
 	for (uint64_t k = 0; k < bytecodes.size(); ++k)
 	{
@@ -34,18 +24,6 @@ Executor::Executor(GlobalBinding* const  global, const std::vector<std::string>&
 		}
 		else if (command == "STORE_VALUE")
 		{
-			{
-				char buffer[256];
-				sprintf_s(buffer, "STATIC 0x%08X \t%s\n", stack.top()->object_id, argument.c_str());
-				OutputDebugStringA(buffer);
-			}
-
-			if (auto org = global->value_map[argument.size()][argument]; org != nullptr)
-			{
-				char buffer[256];
-				sprintf_s(buffer, "DYNMIC 0x%08X \t%s\n", org->object_id, argument.c_str());
-				OutputDebugStringA(buffer);
-			}
 			global->value_map[argument.size()][argument] = stack.top();
 			stack.pop();
 		}
@@ -60,12 +38,11 @@ Executor::Executor(GlobalBinding* const  global, const std::vector<std::string>&
 		}
 		else if (command == "BUILD_DICT")
 		{
-			stack.push(std::make_shared<YObject>(YObjectType::Dict, new Dict()));
+			stack.push(global->new_dict(Dict()));
 		}
 		else if (command == "BUILD_LIST")
 		{
-			auto list = new List();
-			auto list_obj = std::make_shared<YObject>(YObjectType::List, list);
+			auto list = List();
 			std::stack<YPtr> reverse_stack;
 			for (size_t k = 0; k < std::stoull(argument); ++k)
 			{
@@ -74,25 +51,23 @@ Executor::Executor(GlobalBinding* const  global, const std::vector<std::string>&
 			}
 			while (!reverse_stack.empty())
 			{
-				list->push_back(reverse_stack.top());
+				list.push_back(reverse_stack.top());
 				reverse_stack.pop();
 			}
 
-			stack.push(list_obj);
-		}
-		else if (command == "BUILD_SET")
-		{
-			//stack.push(std::make_shared<YObject>(YObjectType::Set, new Set()));
-		}
-		else if (command == "BUILD_TUPLE")
-		{
-			//stack.push(std::make_shared<YObject>(YObjectType::Tuple, new Tuple()));
+			stack.push(global->new_list(list));
 		}
 		else if (command == "IF_FALSE_JUMP")
 		{
-			if (!*(bool*)global->casting(stack.top(), YObjectType::Bool)->data)
+			auto value = stack.top();
+			auto obj = global->call_built_in_function(global->type_bool->get_attr("__new__")->data, global->const_null, global->const_null);
+
+			global->call_built_in_method(obj->get_attr("__init__")->data, obj,
+				global->new_list(List{ value }), global->const_null);
+			if (!*(bool*)obj->data)
 				k = std::stoull(argument) - 1;
 			stack.pop();
+			while (!stack.empty()) stack.pop();
 		}
 		else if (command == "JUMP_TO")
 		{
@@ -100,18 +75,7 @@ Executor::Executor(GlobalBinding* const  global, const std::vector<std::string>&
 		}
 		else if (command == "OPERATOR")
 		{
-			if (argument == "+" || argument == "-" || argument == "*" || argument == "/" || argument == "%" || argument == "**" ||
-				argument == ">" || argument == "<" || argument == ">=" || argument == "<=" || argument == "==" || argument == "!=")
-			{
-				auto rhs = stack.top();
-				stack.pop();
-
-				auto lhs = stack.top();
-				stack.pop();
-
-				stack.push(global->operand(argument, lhs, rhs));
-			}
-			else if (argument == "INSERT_PAIR")
+			if (argument == "INSERT_PAIR")
 			{
 				auto value = stack.top();
 				stack.pop();
@@ -125,95 +89,172 @@ Executor::Executor(GlobalBinding* const  global, const std::vector<std::string>&
 				(*(Dict*)dict->data).push_back(std::make_pair(key, value));
 				stack.push(dict);
 			}
+			else if (auto itr = __operator_to_method__.find(argument); itr != __operator_to_method__.end()) {
+				auto rhs = stack.top();
+				stack.pop();
+
+				auto lhs = stack.top();
+				stack.pop();
+				stack.push(global->call_built_in_method(lhs->get_attr(itr->second)->data,
+					lhs, global->new_list(List{ rhs }), global->const_null));
+			}
 			else throw std::exception(("Unknown Operator " + argument).c_str());
 		}
 		else if (command == "CALL")
 		{
 			std::string buf = argument;
-			std::deque<String> keywords;
+			std::list<String> keywords;
 			for (size_t pos = buf.find(';'); pos != -1; pos = buf.find(';'))
 			{
 				keywords.push_back(buf.substr(0, pos));
 				buf = buf.substr(pos + 1);
 			}
 
-			uint64_t argc = std::stoull(keywords[0]);
+			uint64_t argc = std::stoull(*keywords.begin());
 			keywords.pop_front();
-			YPtr function = nullptr;
-			std::deque<YPtr> args_deq;
-			std::deque<YPtr> kwargs_deq;
-			for (uint64_t k = 1; k < argc; ++k)
+
+			auto list = List();
+			auto dict = Dict();
+
+			argc -= keywords.size();
+			for (auto keyword : keywords)
 			{
-				if (argc + kwargs_deq.size() - k - 2 > 0) args_deq.push_front(stack.top());
-				else kwargs_deq.push_front(stack.top());
+				dict.push_back(std::make_pair(global->new_str(keyword), stack.top()));
 				stack.pop();
 			}
-
-			function = stack.top(); stack.pop();
-
-			if (function->type_id == YObjectType::Built_In_Function)
 			{
-				if (function->data != nullptr)
+				std::list<YPtr> buffer;
+				for (; argc > 1; --argc)
 				{
-					auto list = new List();
-					auto dict = new Dict();
-					auto list_obj = std::make_shared<YObject>(YObjectType::List, list);
-					auto dict_obj = std::make_shared<YObject>(YObjectType::Dict, dict);
+					buffer.push_front(stack.top());
+					stack.pop();
+				}
+				for (auto arg : buffer)
+				{
+					list.push_back(arg);
+				}
+			}
 
-					for (auto arg : args_deq)
-						list->push_back(arg);
-
-					size_t k = 0;
-					for (auto kwarg : kwargs_deq)
-					{
-						dict->push_back(std::pair(std::make_shared<YObject>(YObjectType::String, new String(keywords[k])), kwarg));
-						++k;
-					}
-
-					stack.push((*(BuiltInFunction*)function->data)(global, list_obj, dict_obj));
+			YPtr obj = stack.top(); stack.pop();
+			if (CompareType(obj->type, global->type_built_in_function))
+			{
+				if (obj->data != nullptr)
+				{
+					stack.push((*(BuiltInFunction*)obj->data)(global, global->new_list(list), global->new_dict(dict)));
 				}
 				else throw std::exception("Unknown Built in Function ");
 			}
-			else throw std::exception(("This type is not callable, `" + YObjectTypenames[function->type_id] + "`").c_str());
+			else if (CompareType(obj->type, global->type_type))
+			{
+				auto new_obj = (*(BuiltInFunction*)obj->get_attr("__new__")->data)(global, global->const_null, global->const_null);
+				stack.push((*(BuiltInFunction*)new_obj->get_attr("__init__")->data)(global, global->new_list(list), global->new_dict(dict)));
+			}
+			else throw std::exception("This type is not callable");
+		}
+		else if (command == "CALL_METHOD")
+		{
+			std::string buf = argument;
+			std::list<String> keywords;
+			for (size_t pos = buf.find(';'); pos != -1; pos = buf.find(';'))
+			{
+				keywords.push_back(buf.substr(0, pos));
+				buf = buf.substr(pos + 1);
+			}
+
+			uint64_t argc = std::stoull(*keywords.begin());
+			keywords.pop_front();
+			String method_name = *keywords.begin();
+			keywords.pop_front();
+
+			auto list = List();
+			auto dict = Dict();
+
+			argc -= keywords.size() + 1;
+			for (auto keyword : keywords)
+			{
+				dict.push_back(std::make_pair(global->new_str(keyword), stack.top()));
+				stack.pop();
+			}
+			{
+				std::list<YPtr> buffer;
+				for (; argc > 1; --argc)
+				{
+					buffer.push_front(stack.top());
+					stack.pop();
+				}
+				for (auto arg : buffer)
+				{
+					list.push_back(arg);
+				}
+			}
+
+			YPtr self = stack.top(); stack.pop();
+			YPtr method = self->get_attr(method_name);
+			if (method->type == global->type_built_in_method)
+			{
+				if (method->data != nullptr)
+				{
+					stack.push((*(BuiltInMethod*)method->data)(global, self, global->new_list(list), global->new_dict(dict)));
+				}
+				else throw std::exception("Unknown Built in Method ");
+			}
+			else throw std::exception("This type is not method");
 		}
 		else if (command == "CLEAR_STACK")
 		{
 			while (!stack.empty()) stack.pop();
 		}
-		else if (command == "LOAD_ATTR")
+		else if (command == "GET_ATTR")
 		{
-			auto value = stack.top(); stack.pop();
-
-			YPtr data = nullptr;
-			for (auto& pair : value->attrs)
+			auto value = stack.top();
+			stack.pop();
+			stack.push(value->get_attr(argument));
+		}
+		else if (command == "GET_SUBSRPT")
+		{
+			std::deque<YPtr> args;
+			YPtr obj = global->const_null;
+			uint64_t dimention = std::stoull(argument) - 1;
+			for (uint64_t k = dimention;; --k)
 			{
-				if (pair.first == argument)
+				if (k > 0)
 				{
-					data = pair.second;
+					args.push_front(stack.top());
+					stack.pop();
+				}
+				else
+				{
+					obj = stack.top();
+					stack.pop();
 					break;
 				}
 			}
-			if (data == nullptr) throw std::exception("Unknown Attribute");
-			stack.push(data);
+
+			auto list = List();
+			for (auto arg : args) list.push_back(arg);
+
+			stack.push((*(BuiltInMethod*)obj->get_attr("__getitem__")->data)(global, obj, global->new_list(list), global->const_null));
 		}
 		else throw std::exception("Unknown command");
-	}
 
 #ifdef DEBUG_EXECUTER_STACK
-	std::stack<YObject*> debug_stack;
-	while (!stack.empty())
-	{
-		debug_stack.push(stack.top());
-		stack.pop();
-	}
-	while (!debug_stack.empty())
-	{
-		std::cout << GetRepr(debug_stack.top()) << ", \t";
-		stack.push(debug_stack.top());
-		debug_stack.pop();
-	}
-	std::cout << "\r\n";
+		std::stack<YPtr> debug_stack;
+		List list = List();
+		while (!stack.empty())
+		{
+			debug_stack.push(stack.top());
+			stack.pop();
+		}
+		while (!debug_stack.empty())
+		{
+			list.push_back(debug_stack.top());
+			stack.push(debug_stack.top());
+			debug_stack.pop();
+		}
+		std::cout << ">>>>>>>> ";
+		global->print(global, global->new_list(list), global->const_null);
 #endif
+	}
 
 	if (!stack.empty())
 		throw std::exception("Stack isn't empty");

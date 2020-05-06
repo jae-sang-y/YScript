@@ -1,7 +1,17 @@
 function ABC()
 {
-	print(1, 2, 3, abc = 5, str="ABC");
-	/*c = {
+	i32;
+	e = 1;
+	print(i32);
+	print(e);
+	print(e.__type__(1, 2, 3));
+	print((e.__type__()).__repr__());
+	print((1).__type__());
+	a = [1, 2, 3, 5];
+	for (i = 0; i < a.__len__(); ++i)
+		print(a[i]);
+	/*print('프로젝트 기획안  작성 -1\n서비스 분석 -1');
+	c = {
 	  'raw_data': {
 		'과목': '모프',
 		'담당교사': '이석',
@@ -20,7 +30,9 @@ function ABC()
 	  'teachers': ['이석'],
 	  'objective': '과제형',
 	  'teacher_list': '이석우'
-	};*/
+	};
+	print(c['raw_data']['과목']);
+	print(c['raw_data']);*/
 	//}
 	//a= 10;
 	//do {

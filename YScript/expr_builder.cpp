@@ -109,7 +109,7 @@ tree<Token>* ExpressionEncoder::read_operators(tree<Token>* parent, tree<Token>*
 
 			root->childs.erase(std::prev(itr));
 			root->childs.erase(std::next(itr));
-			child->body = Token{ TokenType::Structure, "LOAD_ATTR" };
+			child->body = Token{ TokenType::Structure, "GetAttribute" };
 		}
 	}
 
@@ -146,7 +146,7 @@ tree<Token>* ExpressionEncoder::read_operators(tree<Token>* parent, tree<Token>*
 			{
 				if (auto prev_itr = std::prev(itr); (*prev_itr)->body.type != TokenType::Operator)
 				{
-					child->body = Token{ TokenType::Caculation, "subscript" };
+					child->body.str = "GetSubscript";
 
 					for (auto itr = child->childs.begin(); itr != child->childs.end(); ++itr)
 						if ((*itr)->body == Token{ TokenType::Operator, "," })
@@ -155,7 +155,6 @@ tree<Token>* ExpressionEncoder::read_operators(tree<Token>* parent, tree<Token>*
 					child->childs.push_front(*prev_itr);
 
 					root->childs.erase(std::prev(itr));
-					child->body.type = TokenType::Caculation;
 					continue;
 				}
 			} //else is_a_normal_brackets
@@ -215,7 +214,7 @@ tree<Token>* ExpressionEncoder::read_operators(tree<Token>* parent, tree<Token>*
 								child->body.str += ":prefix";
 							}
 						}
-						else child->body.type = TokenType::Caculation;
+						child->body.type = TokenType::Caculation;
 						break;
 					}
 				}
@@ -294,6 +293,11 @@ tree<Token>* ExpressionEncoder::read_operators(tree<Token>* parent, tree<Token>*
 					tree<Token>* left = *std::prev(itr);
 					tree<Token>* right = *std::next(itr);
 
+					if (left->body == Token{ TokenType::Structure, "GetAttribute" })
+						left->body == Token{ TokenType::Structure, "SetAttribute" };
+					else if (left->body == Token{ TokenType::Structure, "GetSubscript" })
+						left->body == Token{ TokenType::Structure, "SetSubscript" };
+
 					child->childs.push_back(left);
 					child->childs.push_back(right);
 
@@ -334,7 +338,7 @@ tree<Token>* ExpressionEncoder::read_operators(tree<Token>* parent, tree<Token>*
 		}
 	}
 
-	if (end_token == '}' || end_token == ')' || end_token == ']')
+	//if (end_token == '}' || end_token == ')' || end_token == ']')
 	{
 		for (auto itr = root->childs.begin(); itr != root->childs.end(); ++itr)
 		{

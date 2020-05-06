@@ -3,7 +3,7 @@
 using namespace YScript;
 
 //#define DEBUG_LOGIC_BUILDER
-#define DEBUG_LOGIC_BUILDER_TREE
+//#define DEBUG_LOGIC_BUILDER_TREE
 
 bool LogicBuilder::next_or_exit(const std::list<Token>& tokens) {
 	++itr;

@@ -3,6 +3,7 @@
 
 using namespace YScript;
 
+//#define DEBUG_ASSEMBLER_BUILDING
 //#define DEBUG_ASSEMBLER
 
 void Assembler::process_expression(const tree<Token>* expr, uint64_t depth, uint64_t passing = 0, uint64_t count = -1)
@@ -118,22 +119,50 @@ void Assembler::process_expression(const tree<Token>* expr, uint64_t depth, uint
 				}
 				else if (logic->body.str == "Call")
 				{
-					String call_argument = std::to_string(logic->childs.size());
-					for (auto child : logic->childs)
-						if (child->body == Token{ TokenType::Structure, "FUNCTION_KEYWORD" })
-							call_argument += ";" + (*child->childs.begin())->body.str;
+					if (auto func = *logic->childs.begin(); func->body == Token{ TokenType::Structure, "GetAttribute" })
+					{
+						String call_argument = std::to_string(logic->childs.size() + 1) + ";" + (*std::next(func->childs.begin()))->body.str;
+						for (auto child : logic->childs)
+							if (child->body == Token{ TokenType::Structure, "FUNCTION_KEYWORD" })
+								call_argument += ";" + (*child->childs.begin())->body.str;
+						process_expression(func, depth + 1, 0, 1);
+						process_expression(logic, depth + 1, 1);
+						bytecodes.push_back("CALL_METHOD\t" + call_argument + ";");
+					}
+					else
+					{
+						String call_argument = std::to_string(logic->childs.size());
+						for (auto child : logic->childs)
+							if (child->body == Token{ TokenType::Structure, "FUNCTION_KEYWORD" })
+								call_argument += ";" + (*child->childs.begin())->body.str;
 
-					process_expression(logic, depth + 1);
-					bytecodes.push_back("CALL\t" + call_argument + ";");
+						process_expression(logic, depth + 1);
+						bytecodes.push_back("CALL\t" + call_argument + ";");
+					}
 				}
 				else if (logic->body.str == "FUNCTION_KEYWORD")
 				{
 					process_expression(logic, depth + 1, 1);
 				}
-				else if (logic->body.str == "LOAD_ATTR")
+				else if (logic->body.str == "GetAttribute")
 				{
 					process_expression(logic, depth + 1, 0, 1);
-					bytecodes.push_back("LOAD_ATTR\t" + (*std::next(logic->childs.begin()))->body.str);
+					bytecodes.push_back("GET_ATTR\t" + (*std::next(logic->childs.begin()))->body.str);
+				}
+				else if (logic->body.str == "SetAttribute")
+				{
+					process_expression(logic, depth + 1, 0, 1);
+					bytecodes.push_back("SET_ATTR\t" + (*std::next(logic->childs.begin()))->body.str);
+				}
+				else if (logic->body.str == "GetSubscript")
+				{
+					process_expression(logic, depth + 1);
+					bytecodes.push_back("GET_SUBSRPT\t" + std::to_string(logic->childs.size()));
+				}
+				else if (logic->body.str == "SetSubscript")
+				{
+					process_expression(logic, depth + 1);
+					bytecodes.push_back("SET_SUBSRPT\t" + std::to_string(logic->childs.size()));
 				}
 				else
 				{
@@ -229,7 +258,7 @@ Assembler::Assembler(const tree<Token>& logic)
 	{
 		if (child->body == Token{ TokenType::KeyWord, "function" })
 		{
-#ifdef DEBUG_ASSEMBLER
+#ifdef DEBUG_ASSEMBLER_BUILDING
 			std::cout << "===function name===" << (*child->childs.begin())->body.str << '\n';
 			std::cout << "===function arguments===" << '\n';
 
@@ -243,7 +272,13 @@ Assembler::Assembler(const tree<Token>& logic)
 			process_expression((*std::next(child->childs.begin(), 2)), 0);
 			bytecodes.push_back("CLEAR_STACK\t");
 		}
+			}
+#ifdef DEBUG_ASSEMBLER
+	for (auto bytecode : bytecodes)
+	{
+		std::cout << bytecode << "\r\n";
 	}
+#endif
 
 	return;
-}
+		}
