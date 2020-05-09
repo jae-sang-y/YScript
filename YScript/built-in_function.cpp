@@ -2,426 +2,449 @@
 
 namespace YScript
 {
-	YPtr GlobalBinding::call_built_in_method(void* func, YPtr self, YPtr args, YPtr kwargs)
-	{
-		return (*(BuiltInMethod*)func)(this, self, args, kwargs);
-	}
-
-	YPtr GlobalBinding::call_built_in_function(void* func, YPtr args, YPtr kwargs)
-	{
-		return (*(BuiltInFunction*)func)(this, args, kwargs);
-	}
-
-	namespace Built_In {
-		static std::unordered_map<String, BuiltInMethod> _I32 = {
-			{"__gt__" , [](GlobalBinding* global, YPtr self, YPtr args, YPtr kwargs) {
-				List* list = GetList(args);
-				auto other = list->at(0);
-				if (other->type == global->type_i32)
-					if (*(I32*)self->data > * (I32*)other->data) return global->const_true;
-					else return global->const_false;
-				else throw std::exception("no");
-			}},
-			{ "__ge__" , [](GlobalBinding* global, YPtr self, YPtr args, YPtr kwargs) {
-				List* list = GetList(args);
-				auto other = list->at(0);
-				if (other->type == global->type_i32)
-					if (*(I32*)self->data >= *(I32*)other->data) return global->const_true;
-					else return global->const_false;
-				else throw std::exception("no");
-			}},
-			{"__le__" , [](GlobalBinding* global, YPtr self, YPtr args, YPtr kwargs) {
-				List* list = GetList(args);
-				auto other = list->at(0);
-				if (other->type == global->type_i32)
-					if (*(I32*)self->data <= *(I32*)other->data) return global->const_true;
-					else return global->const_false;
-				else throw std::exception("no");
-			}},
-			{ "__lt__" , [](GlobalBinding* global, YPtr self, YPtr args, YPtr kwargs) {
-				List* list = GetList(args);
-				auto other = list->at(0);
-				if (other->type == global->type_i32)
-					if (*(I32*)self->data < *(I32*)other->data)
-						return global->const_true;
-					else
-						return global->const_false;
-				else throw std::exception("no");
-			}},
-
-			{ "__eq__" , [](GlobalBinding* global, YPtr self, YPtr args, YPtr kwargs) {
-				List* list = GetList(args);
-				auto other = list->at(0);
-				if (other->type == global->type_i32)
-					if (*(I32*)self->data == *(I32*)other->data) return global->const_true;
-					else return global->const_false;
-				else throw std::exception("no");
-			}},
-			{ "__ne__" , [](GlobalBinding* global, YPtr self, YPtr args, YPtr kwargs) {
-				List* list = GetList(args);
-				auto other = list->at(0);
-				if (other->type == global->type_i32)
-					if (*(I32*)self->data != *(I32*)other->data) return global->const_true;
-					else return global->const_false;
-				else throw std::exception("no");
-			}},
-
-			{ "__add__" , [](GlobalBinding* global, YPtr self, YPtr args, YPtr kwargs) {
-				List* list = GetList(args);
-				auto other = list->at(0);
-				if (other->type == global->type_i32)
-				{
-					auto obj = global->call_built_in_function(global->type_i32->get_attr("__new__")->data, global->const_null, global->const_null);
-					*(I32*)obj->data = *(I32*)self->data + *(I32*)other->data;
-					return obj;
-				}
-				else throw std::exception("no");
-			}},
-
-			{"__repr__" , [](GlobalBinding* global, YPtr self, YPtr args, YPtr kwargs) {
-				return global->new_str(std::to_string(*(I32*)self->data));
-			}}
-		};
-
-		static std::unordered_map<String, BuiltInMethod> _BOOL = {
-			{"__init__" , [](GlobalBinding* global, YPtr self, YPtr args, YPtr kwargs) {
-				List* list = GetList(args);
-				auto data = list->at(0);
-
-				if (CompareType(data->type, global->type_bool))
-					*(bool*)self->data = *(bool*)data->data;
-				else if (CompareType(data->type, global->type_null))
-					*(bool*)self->data = false;
-				else *(bool*)self->data = true;
-				return global->const_null;
-			}},
-			{"__repr__" , [](GlobalBinding* global, YPtr self, YPtr args, YPtr kwargs) {
-				if (*(bool*)self->data)
-					return global->new_str("true");
-				else
-					return global->new_str("false");
-			}}
-		};
-
-		static std::unordered_map<String, BuiltInMethod> _NULL = {
-			{"__repr__" , [](GlobalBinding* global, YPtr self, YPtr args, YPtr kwargs) {
-				return global->new_str("null");
-			}}
-		};
-
-		static std::unordered_map<String, BuiltInMethod> _F32 = {};
-
-		static std::unordered_map<String, BuiltInMethod> _STR = {
-			{"__init__" , [](GlobalBinding* global, YPtr self, YPtr args, YPtr kwargs) {
-				List* list = GetList(args);
-				if (list->size())
-				{
-				}
-				return global->const_null;
-			}},
-			{ "__eq__" , [](GlobalBinding* global, YPtr self, YPtr args, YPtr kwargs) {
-				List* list = GetList(args);
-				auto other = list->at(0);
-				if (other->type == global->type_str)
-					if (*(String*)self->data == *(String*)other->data) return global->const_true;
-					else return global->const_false;
-				else throw std::exception("no");
-			}},
-
-			{"__add__" , [](GlobalBinding* global, YPtr self, YPtr args, YPtr kwargs) {
-				List* list = GetList(args);
-				auto other = list->at(0);
-				if (other->type == global->type_str)
-				{
-					*(String*)self->data = *(String*)self->data + *(String*)other->data;
-				}
-				else
-				{
-					auto result = global->call_built_in_method(other->get_attr("__repr__")->data, other, global->new_list(List()), global->new_dict(Dict()));
-					if (result->type != global->type_str) throw std::exception("no");
-					*(String*)self->data = *(String*)self->data + *(String*)result->data;
-				}
-				return self;
-			}},
-
-			{"__repr__" , [](GlobalBinding* global, YPtr self, YPtr args, YPtr kwargs) {
-				return global->new_str(string_encode(*(String*)self->data));
-			}},
-		};
-
-		static std::unordered_map<String, BuiltInMethod> _LIST = {
-			{"__init__" , [](GlobalBinding* global, YPtr self, YPtr args, YPtr kwargs) {
-				List* list = GetList(args);
-				if (list->size())
-				{
-				}
-				return global->const_null;
-			}},
-			{"__getitem__" , [](GlobalBinding* global, YPtr self, YPtr args, YPtr kwargs) {
-				auto data = GetList(args)->at(0);
-
-				List* list = GetList(self);
-				if (!CompareType(data->type, global->type_i32))
-					throw std::exception("1234");
-				I32 index = *(I32*)data->data;
-				if (index < 0) index += list->size();
-
-				if (index >= list->size()) throw std::exception("Key Error");
-				return list->at(index);
-			}},
-			{ "__len__" , [](GlobalBinding* global, YPtr self, YPtr args, YPtr kwargs) {
-				return global->new_i32(GetList(self)->size());
-			}},
-			{"__repr__" , [](GlobalBinding* global, YPtr self, YPtr args, YPtr kwargs) {
-				YPtr str = global->new_str("[");
-				uint64_t k = 0;
-				for (auto element : *(List*)self->data)
-				{
-					if (k > 0)
-					{
-						global->call_built_in_method(str->get_attr("__add__")->data,
-							str, CreateObject(global->type_list, new List{ global->new_str(", ") }), global->const_null);
-					}
-					global->call_built_in_method(str->get_attr("__add__")->data,
-						str, CreateObject(global->type_list, new List{
-							global->call_built_in_method(element->get_attr("__repr__")->data,
-						element, CreateObject(global->type_list, new List{ element }), global->const_null)
-							}), global->const_null);
-					++k;
-				}
-				global->call_built_in_method(str->get_attr("__add__")->data,
-					str, CreateObject(global->type_list, new List{ global->new_str("]") }), global->const_null);
-				return str;
-			}},
-		};
-
-		static std::unordered_map<String, BuiltInMethod> _DICT = {
-			{"__init__" , [](GlobalBinding* global, YPtr self, YPtr args, YPtr kwargs) {
-				List* list = GetList(args);
-				if (list->size())
-				{
-					auto data = list->at(0);
-
-					if (CompareType(data->type, global->type_dict))
-						*(bool*)self->data = *(bool*)data->data;
-					else throw std::exception("Unknown type");
-				}
-				return global->const_null;
-			}},
-			{"__getitem__" , [](GlobalBinding* global, YPtr self, YPtr args, YPtr kwargs) {
-				List* list = GetList(args);
-				auto data = list->at(0);
-
-				Dict* dict = GetDict(self);
-				for (auto& pair : *dict)
-				{
-					if (CompareType(pair.first->type, data->type))
-					{
-						auto result = global->call_built_in_method(pair.first->get_attr("__eq__")->data,
-							pair.first, global->new_list(List{ data }), global->const_null);
-						if (!CompareType(result->type, global->type_bool))
-							throw std::exception("Expect bool type");
-						if (*(bool*)result->data)
-							return pair.second;
-					}
-				}
-				throw std::exception("Key Error");
-			}},
-			{"__repr__" , [](GlobalBinding* global, YPtr self, YPtr args, YPtr kwargs) {
-				YPtr str = global->new_str("{");
-				uint64_t k = 0;
-				for (auto pair : *(Dict*)self->data)
-				{
-					if (k > 0)
-					{
-						global->call_built_in_method(str->get_attr("__add__")->data,
-							str, CreateObject(global->type_list, new List{ global->new_str(", ") }), global->const_null);
-					}
-					global->call_built_in_method(str->get_attr("__add__")->data,
-						str, CreateObject(global->type_list, new List{
-							global->call_built_in_method(pair.first->get_attr("__repr__")->data,
-						pair.first, CreateObject(global->type_list, new List{ pair.first }), global->const_null)
-							}), global->const_null);
-
-					global->call_built_in_method(str->get_attr("__add__")->data,
-						str, CreateObject(global->type_list, new List{ global->new_str(": ") }), global->const_null);
-
-					global->call_built_in_method(str->get_attr("__add__")->data,
-						str, CreateObject(global->type_list, new List{
-							global->call_built_in_method(pair.second->get_attr("__repr__")->data,
-						pair.second, CreateObject(global->type_list, new List{ pair.second }), global->const_null)
-							}), global->const_null);
-					++k;
-				}
-				global->call_built_in_method(str->get_attr("__add__")->data,
-					str, CreateObject(global->type_list, new List{ global->new_str("}") }), global->const_null);
-				return str;
-			}},
-		};
-
-		static std::unordered_map<String, BuiltInMethod> _TYPE = {
-			{"__repr__", [](GlobalBinding* global, YPtr self, YPtr args, YPtr kwargs) {
-				return global->new_str("<type '" + *(String*)self->data + "'>");
-			}},
-			{"__type__",  [](GlobalBinding* global, YPtr self, YPtr args, YPtr kwargs) {
-			return self->type;
-			}},
-		};
-	}
-
 	void GlobalBinding::assign_built_in(const std::string value_name, YPtr object)
 	{
-		value_map[value_name.size()][value_name] = object;
+		object->debug_comment += " <" + value_name + ">";
+		global_value_map[value_name.size()][value_name] = object;
 	}
 
-	YPtr GlobalBinding::new_dict(Dict dict)
-	{
-		auto result = call_built_in_function(type_dict->get_attr("__new__")->data, const_null, const_null);
-		*(Dict*)result->data = dict;
-		return result;
+	void GlobalBinding::BuildType(YPtr& type) {
+		type->assign_attr(
+			"__repr__", CreateBuiltInFunction(
+				FunctionHeader{
+					false, false, 1, Attributes()
+				},
+				RawFunction{ [](GlobalBinding* global, List& args, Attributes& kawrgs) {
+					   auto self = args.at(0);
+					   if (!self->CompareType("type"))
+						   throw "Exception";
+					   return global->CreateStr("<type '" + self->AsStr() + "'>");
+				} }
+		));
 	}
-
-	YPtr GlobalBinding::new_list(List list)
-	{
-		auto result = call_built_in_function(type_list->get_attr("__new__")->data, const_null, const_null);
-		*(List*)result->data = list;
-		return result;
+	void GlobalBinding::BuildNull(YPtr& type) {
+		type->assign_attr(
+			"__repr__", CreateBuiltInFunction(
+				FunctionHeader{
+					false, false, 1, Attributes()
+				},
+				RawFunction{ [](GlobalBinding* global, List& args, Attributes& kawrgs) {
+					return global->CreateStr("null");
+				} }
+		));
 	}
-
-	YPtr GlobalBinding::new_str(String str)
-	{
-		auto result = call_built_in_function(type_str->get_attr("__new__")->data, const_null, const_null);
-		*(String*)result->data = str;
-		return result;
+	void GlobalBinding::BuildBool(YPtr& type) {
+		type->assign_attr(
+			"__repr__", CreateBuiltInFunction(
+				FunctionHeader{
+					false, false, 1, Attributes()
+				},
+				RawFunction{ [](GlobalBinding* global, List& args, Attributes& kawrgs) {
+					YPtr self = args.at(0);
+					if (self->AsBool())
+						return global->CreateStr("true");
+					else
+						return global->CreateStr("false");
+				} }
+		));
 	}
+	void GlobalBinding::BuildI32(YPtr& type) {
+		type->assign_attr(
+			"__repr__", CreateBuiltInFunction(
+				FunctionHeader{
+					false, false, 1, Attributes()
+				},
+				RawFunction{ [](GlobalBinding* global, List& args, Attributes& kawrgs) {
+					YPtr self = args.at(0);
+					return global->CreateStr(std::to_string(self->AsI32()));
+				} }
+		));
 
-	YPtr GlobalBinding::new_i32(I32 i32)
-	{
-		auto result = call_built_in_function(type_i32->get_attr("__new__")->data, const_null, const_null);
-		*(I32*)result->data = i32;
-		return result;
+		type->assign_attr(
+			"__add__", CreateBuiltInFunction(
+				FunctionHeader{
+					false, false, 2, Attributes()
+				},
+				RawFunction{ [](GlobalBinding* global, List& args, Attributes& kawrgs) {
+					YPtr self = args.at(0);
+					YPtr other = args.at(1);
+
+					if (other->CompareType("i32"))
+						return global->CreateI32(self->AsI32() + other->AsI32());
+					else
+						return global->CreateStr(global->RunOperator("__repr__", self)->AsStr() + global->RunOperator("__repr__", other)->AsStr());
+				} }
+		));
+
+		type->assign_attr(
+			"__sub__", CreateBuiltInFunction(
+				FunctionHeader{
+					false, false, 2, Attributes()
+				},
+				RawFunction{ [](GlobalBinding* global, List& args, Attributes& kawrgs) {
+					YPtr self = args.at(0);
+					YPtr other = args.at(1);
+
+					if (other->CompareType("i32"))
+						return global->CreateI32(self->AsI32() - other->AsI32());
+					else
+						return global->CreateException("i32: Can't __sub__ by " + other->GetType()->AsStr());
+				} }
+		));
+
+		type->assign_attr(
+			"__gt__", CreateBuiltInFunction(
+				FunctionHeader{
+					false, false, 2, Attributes()
+				},
+				RawFunction{ [](GlobalBinding* global, List& args, Attributes& kawrgs) {
+					YPtr self = args.at(0);
+					YPtr other = args.at(1);
+
+					if (other->CompareType("i32"))
+						return global->CreateBool(self->AsI32() > other->AsI32());
+					else
+						return global->CreateException("i32: Can't __gt__ by " + other->GetType()->AsStr());
+				} }
+		));
+		type->assign_attr(
+			"__ge__", CreateBuiltInFunction(
+				FunctionHeader{
+					false, false, 2, Attributes()
+				},
+				RawFunction{ [](GlobalBinding* global, List& args, Attributes& kawrgs) {
+					YPtr self = args.at(0);
+					YPtr other = args.at(1);
+
+					if (other->CompareType("i32"))
+						return global->CreateBool(self->AsI32() >= other->AsI32());
+					else
+						return global->CreateException("i32: Can't __ge__ by " + other->GetType()->AsStr());
+				} }
+		));
+		type->assign_attr(
+			"__le__", CreateBuiltInFunction(
+				FunctionHeader{
+					false, false, 2, Attributes()
+				},
+				RawFunction{ [](GlobalBinding* global, List& args, Attributes& kawrgs) {
+					YPtr self = args.at(0);
+					YPtr other = args.at(1);
+
+					if (other->CompareType("i32"))
+						return global->CreateBool(self->AsI32() <= other->AsI32());
+					else
+						return global->CreateException("i32: Can't __le__ by " + other->GetType()->AsStr());
+				} }
+		));
+		type->assign_attr(
+			"__lt__", CreateBuiltInFunction(
+				FunctionHeader{
+					false, false, 2, Attributes()
+				},
+				RawFunction{ [](GlobalBinding* global, List& args, Attributes& kawrgs) {
+					YPtr self = args.at(0);
+					YPtr other = args.at(1);
+
+					if (other->CompareType("i32"))
+						return global->CreateBool(self->AsI32() < other->AsI32());
+					else
+						return global->CreateException("i32: Can't __lt__ by " + other->GetType()->AsStr());
+				} }
+		));
+
+		type->assign_attr(
+			"__eq__", CreateBuiltInFunction(
+				FunctionHeader{
+					false, false, 2, Attributes()
+				},
+				RawFunction{ [](GlobalBinding* global, List& args, Attributes& kawrgs) {
+					YPtr self = args.at(0);
+					YPtr other = args.at(1);
+
+					if (other->CompareType("i32"))
+						return global->CreateBool(self->AsI32() == other->AsI32());
+					else
+						return global->CreateException("i32: Can't __eq__ by " + other->GetType()->AsStr());
+				} }
+		));
+		type->assign_attr(
+			"__ne__", CreateBuiltInFunction(
+				FunctionHeader{
+					false, false, 2, Attributes()
+				},
+				RawFunction{ [](GlobalBinding* global, List& args, Attributes& kawrgs) {
+					YPtr self = args.at(0);
+					YPtr other = args.at(1);
+
+					if (other->CompareType("i32"))
+						return global->CreateBool(self->AsI32() != other->AsI32());
+					else
+						return global->CreateException("i32: Can't __ne__ by " + other->GetType()->AsStr());
+				} }
+		));
 	}
+	void GlobalBinding::BuildF32(YPtr& type) {
+	}
+	void GlobalBinding::BuildException(YPtr& type) {
+		type->assign_attr(
+			"__repr__", CreateBuiltInFunction(
+				FunctionHeader{
+					false, false, 1, Attributes()
+				},
+				RawFunction{ [](GlobalBinding* global, List& args, Attributes& kawrgs) {
+					YPtr self = args.at(0);
+					return global->CreateStr("<exception " + String(self->AsStr()) + ">");
+				} }
+		));
+	}
+	void GlobalBinding::BuildStr(YPtr& type) {
+		type->assign_attr(
+			"__add__", CreateBuiltInFunction(
+				FunctionHeader{
+					false, false, 2, Attributes()
+				},
+				RawFunction{ [](GlobalBinding* global, List& args, Attributes& kawrgs) {
+					YPtr self = args.at(0);
+					YPtr other = args.at(1);
 
-	YPtr GlobalBinding::new_f32(F32 f32)
-	{
-		auto result = call_built_in_function(type_f32->get_attr("__new__")->data, const_null, const_null);
-		*(F32*)result->data = f32;
-		return result;
+					if (other->CompareType("str"))
+						return global->CreateStr(self->AsStr() + other->AsStr());
+					else
+						return global->CreateStr(self->AsStr() + global->RunOperator("__repr__", other)->AsStr());
+				} }
+		));
+		type->assign_attr(
+			"__repr__", CreateBuiltInFunction(
+				FunctionHeader{
+					false, false, 1, Attributes()
+				},
+				RawFunction{ [](GlobalBinding* global, List& args, Attributes& kawrgs) {
+					YPtr self = args.at(0);
+					return global->CreateStr(String(self->AsStr()));
+				} }
+		));
+		type->assign_attr(
+			"__eq__", CreateBuiltInFunction(
+				FunctionHeader{
+					false, false, 2, Attributes()
+				},
+				RawFunction{ [](GlobalBinding* global, List& args, Attributes& kawrgs) {
+					YPtr self = args.at(0);
+					YPtr other = args.at(1);
+
+					if (other->CompareType("str"))
+						return global->CreateBool(self->AsStr() == other->AsStr());
+					else
+						return global->CreateBool(false);
+				} }
+		));
+	}
+	void GlobalBinding::BuildList(YPtr& type) {
+		type->assign_attr(
+			"__getitem__", CreateBuiltInFunction(
+				FunctionHeader{
+					false, false, 2, Attributes()
+				},
+				RawFunction{ [](GlobalBinding* global, List& args, Attributes& kawrgs) {
+					   YPtr self = args.at(0);
+					   List keys = args.at(1)->AsList();
+
+					   I32 k = 0;
+					   I32 t = keys.at(0)->AsI32();
+					   if (t < 0) t += self->AsList().size();
+					   for (auto& item : self->AsList())
+					   {
+						   if (k == t)
+								return item;
+						   ++k;
+					   }
+					   throw "exception";
+				} }
+		));
+		type->assign_attr(
+			"__len__", CreateBuiltInFunction(
+				FunctionHeader{
+					false, false, 1, Attributes()
+				},
+				RawFunction{ [](GlobalBinding* global, List& args, Attributes& kawrgs) {
+					   YPtr self = args.at(0);
+
+					   return global->CreateI32(self->AsList().size());
+				} }
+		));
+		type->assign_attr(
+			"__repr__", CreateBuiltInFunction(
+				FunctionHeader{
+					false, false, 1, Attributes()
+				},
+				RawFunction{ [](GlobalBinding* global, List& args, Attributes& kawrgs) {
+					   YPtr self = args.at(0);
+
+					   YPtr obj = global->CreateStr("[");
+					   String& str = obj->AsStr();
+					   uint64_t k = 0;
+					   for (YPtr item : self->AsList())
+					   {
+						   if (k > 0) str += ", ";
+						   str += global->RunOperator("__repr__", item)->AsStr();
+						   ++k;
+					   }
+					   str += "]";
+					   return obj;
+				} }
+		));
+	}
+	void GlobalBinding::BuildDict(YPtr& type) {
+		type->assign_attr(
+			"__getitem__", CreateBuiltInFunction(
+				FunctionHeader{
+					false, false, 2, Attributes()
+				},
+				RawFunction{ [](GlobalBinding* global, List& args, Attributes& kawrgs) {
+					   YPtr self = args.at(0);
+					   YPtr key = args.at(1);
+
+					   for (auto& pair : self->AsDict())
+					   {
+						   if (global->CompareType(pair.first, key))
+						   {
+							   if (global->RunOperator("__eq__", pair.first, key)->AsBool())
+								   return pair.second;
+						   }
+					   }
+					   throw "exception";
+				} }
+		));
+		type->assign_attr(
+			"__repr__", CreateBuiltInFunction(
+				FunctionHeader{
+					false, false, 1, Attributes()
+				},
+				RawFunction{ [](GlobalBinding* global, List& args, Attributes& kawrgs) {
+					   YPtr self = args.at(0);
+
+					   YPtr obj = global->CreateStr("{");
+					   String& str = obj->AsStr();
+					   uint64_t k = 0;
+					   for (auto pair : self->AsDict())
+					   {
+						   if (k > 0) str += ", ";
+						   str += global->RunOperator("__repr__", pair.first)->AsStr();
+						   str += ": ";
+						   str += global->RunOperator("__repr__", pair.second)->AsStr();
+
+						   ++k;
+					   }
+					   str += "}";
+					   return obj;
+				} }
+		));
+	}
+	void GlobalBinding::BuildObject(YPtr& type) {
+	}
+	void GlobalBinding::BuildFunctions() {
+		assign_built_in("print", CreateBuiltInFunction(
+			FunctionHeader{
+				true, false, 0, Attributes()
+			},
+			RawFunction{ [](GlobalBinding* global, List& args, Attributes& kawrgs) {
+				for (YPtr arg : args)
+				{
+					if (arg->CompareType("built_in_function"))
+					{
+						std::cout << "<built-in method>";
+					}
+					else
+					{
+						YPtr func = arg->GetType()->get_attr("__repr__");
+						auto args = List();
+						auto kwargs = Attributes();
+
+						args.push_back(arg);
+
+						std::cout << global->CallFunction(func, args, kwargs)->AsStr() << " ";
+					}
+				}
+				std::cout << "\r\n";
+				return global->const_null;
+			} }));
+
+		assign_built_in("type", CreateBuiltInFunction(
+			FunctionHeader{
+				false, false, 1, Attributes()
+			},
+			RawFunction{ [](GlobalBinding* global, List& args, Attributes& kawrgs) {
+				YPtr self = args.at(0);
+				return self->GetType();
+			} }));
+
+		assign_built_in("len", CreateBuiltInFunction(
+			FunctionHeader{
+				false, false, 1, Attributes()
+			},
+			RawFunction{ [](GlobalBinding* global, List& args, Attributes& kawrgs) {
+				YPtr self = args.at(0);
+				return global->RunOperator("__len__", self);
+			} }));
 	}
 
 	GlobalBinding::GlobalBinding() {
-		built_in_types = {
-			type_type, type_i32, type_f32, type_str, type_null, type_bool,
-			type_built_in_function, type_built_in_method, type_function, type_method,
-			type_list, type_dict
-		};
+		type_type = std::make_shared<YObject>(nullptr, new  String("type"));
+		type_type->SetType(this->type_type);
+		type_type->debug_comment = "type";
+		type_i32 = CreateType("i32");
+		type_f32 = CreateType("f32");
+		type_str = CreateType("str");
+		type_null = CreateType("null");
+		type_bool = CreateType("bool");
+		type_exception = CreateType("exception");
+		type_built_in_function = CreateType("built_in_function");
+		type_function = CreateType("function");
+		type_list = CreateType("list");
+		type_dict = CreateType("dict");
+		type_object = CreateType("object");
 
-		for (auto method : Built_In::_TYPE)
-			type_type->assign_attr(method.first, CreateObject(type_built_in_method, new BuiltInMethod(method.second)));
-
-		for (auto type : built_in_types)
-		{
-			type->type = type_type;
-			type->type_name = "type";
-			type_type->inherit_to_subclass(type);
-		}
-
-		for (auto method : Built_In::_BOOL) type_bool->overload_attr(method.first, CreateObject(type_built_in_method, new BuiltInMethod(method.second)));
-		for (auto method : Built_In::_NULL) type_null->overload_attr(method.first, CreateObject(type_built_in_method, new BuiltInMethod(method.second)));
-		for (auto method : Built_In::_I32) type_i32->overload_attr(method.first, CreateObject(type_built_in_method, new BuiltInMethod(method.second)));
-		for (auto method : Built_In::_F32) type_f32->overload_attr(method.first, CreateObject(type_built_in_method, new BuiltInMethod(method.second)));
-		for (auto method : Built_In::_STR) type_str->overload_attr(method.first, CreateObject(type_built_in_method, new BuiltInMethod(method.second)));
-		for (auto method : Built_In::_LIST) type_list->overload_attr(method.first, CreateObject(type_built_in_method, new BuiltInMethod(method.second)));
-		for (auto method : Built_In::_DICT) type_dict->overload_attr(method.first, CreateObject(type_built_in_method, new BuiltInMethod(method.second)));
-
-		type_built_in_method->overload_attr("__repr__", CreateObject(type_built_in_function, new BuiltInFunction([](GlobalBinding* global, YPtr args, YPtr kwargs) {
-			return global->new_str("<built-in method>");
-			})));
-
-		type_built_in_function->overload_attr("__repr__", CreateObject(type_built_in_function, new BuiltInFunction([](GlobalBinding* global, YPtr args, YPtr kwargs) {
-			return global->new_str("<built-in function>");
-			})));
-
-		type_type->assign_attr("__new__", CreateObject(type_built_in_function, new BuiltInFunction([](GlobalBinding* global, YPtr args, YPtr kwargs) {
-			auto obj = CreateObject(global->type_type, new String{ "unknown" });
-			global->type_type->inherit_to_subclass(obj);
-			return obj;
-			})));
-
-		type_bool->assign_attr("__new__", CreateObject(type_built_in_function, new BuiltInFunction([](GlobalBinding* global, YPtr args, YPtr kwargs) {
-			auto obj = CreateObject(global->type_bool, new bool{ false });
-			global->type_bool->inherit_to_subclass(obj);
-			return obj;
-			})));
-
-		type_null->assign_attr("__new__", CreateObject(type_built_in_function, new BuiltInFunction([](GlobalBinding* global, YPtr args, YPtr kwargs) {
-			auto obj = CreateObject(global->type_null, nullptr);
-			global->type_null->inherit_to_subclass(obj);
-			return obj;
-			})));
-
-		type_i32->assign_attr("__new__", CreateObject(type_built_in_function, new BuiltInFunction([](GlobalBinding* global, YPtr args, YPtr kwargs) {
-			auto obj = CreateObject(global->type_i32, new I32{ 0 });
-			global->type_i32->inherit_to_subclass(obj);
-			return obj;
-			})));
-
-		type_f32->assign_attr("__new__", CreateObject(type_built_in_function, new BuiltInFunction([](GlobalBinding* global, YPtr args, YPtr kwargs) {
-			auto obj = CreateObject(global->type_f32, new F32());
-			global->type_f32->inherit_to_subclass(obj);
-			return obj;
-			})));
-
-		type_str->assign_attr("__new__", CreateObject(type_built_in_function, new BuiltInFunction([](GlobalBinding* global, YPtr args, YPtr kwargs) {
-			auto obj = CreateObject(global->type_str, new String());
-			global->type_str->inherit_to_subclass(obj);
-			return obj;
-			})));
-
-		type_list->assign_attr("__new__", CreateObject(type_built_in_function, new BuiltInFunction([](GlobalBinding* global, YPtr args, YPtr kwargs) {
-			auto obj = CreateObject(global->type_list, new List());
-			global->type_list->inherit_to_subclass(obj);
-			return obj;
-			})));
-
-		type_dict->assign_attr("__new__", CreateObject(type_built_in_function, new BuiltInFunction([](GlobalBinding* global, YPtr args, YPtr kwargs) {
-			auto obj = CreateObject(global->type_dict, new Dict());
-			global->type_dict->inherit_to_subclass(obj);
-			return obj;
-			})));
-
-		assign_built_in("type", type_type);
-		assign_built_in("bool", type_bool);
-		assign_built_in("null", type_null);
 		assign_built_in("i32", type_i32);
 		assign_built_in("f32", type_f32);
 		assign_built_in("str", type_str);
+		assign_built_in("bool", type_bool);
+		assign_built_in("exception", type_exception);
+		assign_built_in("func", type_function);
+		assign_built_in("built_in_function", type_built_in_function);
 		assign_built_in("list", type_list);
 		assign_built_in("dict", type_dict);
-		assign_built_in("built_in_function", type_built_in_function);
-		assign_built_in("built_in_method", type_built_in_method);
+		assign_built_in("object", type_object);
 
-		const_true = CreateObject(type_bool, new bool{ true });
-		const_false = CreateObject(type_bool, new bool{ false });
-		const_null = CreateObject(type_null, nullptr);
-		built_in_consts = {
+		const_true = CreateBool(true);
+		const_false = CreateBool(false);
+		const_null = CreateNull();
+		const_empty_function = CreateBuiltInFunction(
+			FunctionHeader{
+				true, true, 0, Attributes()
+			},
+			RawFunction{ [](GlobalBinding* global, List& args, Attributes& kawrgs) {
+				return global->const_null;
+			} }
+		);
+
+		std::vector<YPtr> built_in_consts = {
 		   const_true, const_false, const_null
 		};
+
 		for (auto a_const : built_in_consts)
-		{
-			a_const->type_name = *(String*)a_const->type->data;
-			a_const->type->inherit_to_subclass(a_const);
 			a_const->is_const = true;
-		}
 
-		assign_built_in("print", CreateObject(type_built_in_function, NEW BuiltInFunction(print)));
-
-		//auto func = (*(BuiltInMethod*)type_i32->get_attr("__repr__")->data);
-		//func(this, type_i32, const_null, const_null);
-		//{
-			//value_map[4]["test"] = CreateObject(YObjectType::Instance, nullptr);
-//			value_map[4]["test"]->attrs.push_back(std::pair(String("a"), CreateObject(YObjectType::I32, new I32(1234))));
-		//}
+		BuildType(type_type);
+		BuildNull(type_null);
+		BuildBool(type_bool);
+		BuildBool(type_exception);
+		BuildI32(type_i32);
+		BuildF32(type_f32);
+		BuildList(type_list);
+		BuildDict(type_dict);
+		BuildObject(type_object);
+		BuildFunctions();
 	}
 
 	std::string string_encode(const std::string& src)
@@ -493,13 +516,13 @@ namespace YScript
 			return const_null;
 		}
 		else if (src.at(0) == '\'')
-			return new_str(string_decode(src));
+			return CreateStr(string_decode(src));
 		else
 		{
 			if (src.find('.') == -1)
-				return new_i32(std::stol(src));
+				return CreateI32(std::stol(src));
 			else
-				return new_f32(std::stof(src));
+				return CreateF32(std::stof(src));
 		}
 	}
 }

@@ -4,11 +4,10 @@ function ABC()
 	e = 1;
 	print(i32);
 	print(e);
-	print(e.__type__(1, 2, 3));
-	print((e.__type__()).__repr__());
-	print((1).__type__());
+	print(type(e));
+	print(type(1));
 	a = [1, 2, 3, 5];
-	for (i = 0; i < a.__len__(); ++i)
+	for (i = 0; i < len(a); ++i)
 		print(a[i]);
 	/*print('프로젝트 기획안  작성 -1\n서비스 분석 -1');
 	c = {

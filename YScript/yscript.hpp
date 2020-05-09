@@ -23,24 +23,41 @@ namespace YScript
 	typedef float F32;
 	typedef std::string String;
 
-	static uint64_t yobject_incr = 0;
+	extern struct YObject;
+	extern struct GlobalBinding;
+
+	struct Attribute {
+		String key;
+		std::shared_ptr<YObject> value;
+	};
+	typedef std::vector<Attribute> Attributes;
+	typedef std::shared_ptr<YObject> YPtr;
+	typedef std::vector<std::pair<YPtr, YPtr>> Dict;
+	typedef std::vector<YPtr> List;
+	typedef std::vector<std::string> Code;
+	typedef std::function<YPtr(GlobalBinding*, List&, Attributes&)> RawFunction;
+	struct FunctionHeader {
+		bool unlimit_args = false;
+		bool unlimit_kwargs = false;
+		uint64_t argc = 0;
+		Attributes kwargs;
+	};
+	struct BuiltInFunction : public FunctionHeader {
+		RawFunction function;
+	};
+
+	static uint64_t __yobject_incr__ = 0;
 	struct YObject {
-		std::shared_ptr<YObject> type = nullptr;
-		const uint64_t object_id = ++yobject_incr;
+		const uint64_t object_id = ++__yobject_incr__;
 		void* const data = nullptr;
 		bool is_const = false;
-		String type_name = "";
-
-		struct Attribute {
-			String key;
-			std::shared_ptr<YObject> value;
-		};
+		String debug_comment = "";
 
 		YObject(std::shared_ptr<YObject> type, void* const data) : data(data), type(type) {
 			if (type == nullptr)
-				type_name = "unknown";
+				debug_comment = "unknown";
 			else
-				type_name = *(String*)type->data;
+				debug_comment = type->AsStr();
 		}
 		~YObject() {
 			if (data != nullptr)
@@ -89,19 +106,63 @@ namespace YScript
 			attrs.push_back(Attribute{ target, value });
 		}
 
+		bool CompareType(String&& name)
+		{
+			if (type == nullptr) throw "Exception";
+			return (*(String*)type->data) == name;
+		}
+		String& AsStr()
+		{
+			if (!(CompareType("str") || CompareType("type") || CompareType("object") || CompareType("exception"))) throw "Exception";
+			return *(String*)data;
+		}
+		bool& AsBool()
+		{
+			if (!(CompareType("bool"))) throw "Exception";
+			return *(bool*)data;
+		}
+		I32& AsI32()
+		{
+			if (!(CompareType("i32"))) throw "Exception";
+			return *(I32*)data;
+		}
+		F32& AsF32()
+		{
+			if (!(CompareType("f32"))) throw "Exception";
+			return *(F32*)data;
+		}
+		List& AsList()
+		{
+			if (!(CompareType("list"))) throw "Exception";
+			return *(List*)data;
+		}
+		Dict& AsDict()
+		{
+			if (!(CompareType("dict"))) throw "Exception";
+			return *(Dict*)data;
+		}
+		Attributes& AsAttributes()
+		{
+			if (!(CompareType("11"))) throw "Exception";
+			return *(Attributes*)data;
+		}
+		BuiltInFunction& AsBuiltInFunction()
+		{
+			if (!(CompareType("built_in_function"))) throw "Exception";
+			return *(BuiltInFunction*)data;
+		}
+		void SetType(std::shared_ptr<YObject> type)
+		{
+			this->type = type;
+		}
+		std::shared_ptr<YObject> GetType()
+		{
+			return type;
+		}
 	private:
-		std::vector<Attribute> attrs;
+		Attributes attrs;
+		std::shared_ptr<YObject> type = nullptr;
 	};
-
-	typedef std::shared_ptr<YObject> YPtr;
-	typedef std::vector<std::pair<YPtr, YPtr>> Dict;
-	typedef std::vector<YPtr> List;
-	typedef std::vector<std::string> Code;
-
-	static YPtr CreateObject(YPtr type, void* value)
-	{
-		return std::make_shared<YObject>(type, value);
-	}
 
 	const static std::list<std::string> __keywords__ = {
 		"function",
@@ -178,80 +239,172 @@ namespace YScript
 	bool operator == (const Token& left, const Token& right);
 	bool operator != (const Token& left, const Token& right);
 
-	static bool CompareType(YPtr lhs, YPtr rhs)
-	{
-		return *(String*)lhs->data == *(String*)rhs->data;
-	}
-
-	static List* GetList(YPtr list) {
-		if (*(String*)list->type->data != "list")
-			throw std::exception("is not list");
-		return (List*)list->data;
-	}
-	static Dict* GetDict(YPtr dict) {
-		if (*(String*)dict->type->data != "dict")
-			throw std::exception("is not dict");
-		return (Dict*)dict->data;
-	}
-
 	struct GlobalBinding {
-		YPtr type_type = CreateObject(nullptr, new String("type"));
-		YPtr type_i32 = CreateObject(nullptr, new String("i32"));
-		YPtr type_f32 = CreateObject(nullptr, new String("f32"));
-		YPtr type_str = CreateObject(nullptr, new String("str"));
-		YPtr type_null = CreateObject(nullptr, new String("null"));
-		YPtr type_bool = CreateObject(nullptr, new String("bool"));
+		YPtr type_type = nullptr;
 
-		YPtr type_built_in_function = CreateObject(nullptr, new String("built_in_function"));
-		YPtr type_built_in_method = CreateObject(nullptr, new String("built_in_method"));
-		YPtr type_function = CreateObject(nullptr, new String("user_defined_function"));
-		YPtr type_method = CreateObject(nullptr, new String("method"));
+		YPtr type_null = nullptr;
+		YPtr type_bool = nullptr;
+		YPtr type_exception = nullptr;
 
-		YPtr type_list = CreateObject(nullptr, new String("list"));
-		YPtr type_dict = CreateObject(nullptr, new String("dict"));
+		YPtr type_i32 = nullptr;
+		YPtr type_f32 = nullptr;
+		YPtr type_str = nullptr;
+
+		YPtr type_built_in_function = nullptr;
+		YPtr type_function = nullptr;
+
+		YPtr type_list = nullptr;
+		YPtr type_dict = nullptr;
+		YPtr type_object = nullptr;
 
 		YPtr const_true = nullptr;
 		YPtr const_false = nullptr;
 		YPtr const_null = nullptr;
+		YPtr const_empty_function = nullptr;
 
-		std::list<YPtr> built_in_types;
-		std::list<YPtr> built_in_consts;
-		std::map<uint64_t, std::map<std::string, YPtr>> value_map;
+		std::map<uint64_t, std::map<std::string, YPtr>> global_value_map;
 		std::map<std::string, std::map<uint64_t, std::map<std::string, YPtr>>> local_value_map;
-		YPtr call_built_in_function(void* func, YPtr args, YPtr kwargs);
-		YPtr call_built_in_method(void* func, YPtr self, YPtr args, YPtr kwargs);
 		YPtr literal_decode(const std::string& src);
 		std::string string_decode(const std::string& src);
 
-		YPtr new_list(List list);
-		YPtr new_dict(Dict dict);
-		YPtr new_str(String str);
-		YPtr new_i32(I32 i32);
-		YPtr new_f32(F32 f32);
+		YPtr CreateType(String&& str)
+		{
+			return CreateYPtr(type_type, new String(str));
+		}
 
-		std::function<YPtr(GlobalBinding*, YPtr, YPtr)> print = [](GlobalBinding* global, YPtr args, YPtr kwargs) {
-			for (auto arg : *(List*)args->data)
+		YPtr CreateNull()
+		{
+			return CreateYPtr(type_null, nullptr);
+		}
+
+		YPtr CreateBool(bool&& data = bool())
+		{
+			return CreateYPtr(type_bool, new bool(data));
+		}
+		YPtr CreateI32(I32&& data = I32())
+		{
+			return CreateYPtr(type_i32, new I32(data));
+		}
+		YPtr CreateF32(F32&& data = F32())
+		{
+			return CreateYPtr(type_f32, new F32(data));
+		}
+		YPtr CreateStr(String&& data = String())
+		{
+			return CreateYPtr(type_str, new String(data));
+		}
+		YPtr CreateException(String&& data = String())
+		{
+			return CreateYPtr(type_exception, new String(data));
+		}
+
+		YPtr CreateBuiltInFunction(BuiltInFunction&& data)
+		{
+			return CreateYPtr(type_built_in_function, new BuiltInFunction(data));
+		}
+
+		YPtr CreateBuiltInFunction(FunctionHeader&& header, RawFunction&& raw_func) {
+			auto* data = new BuiltInFunction();
+			data->argc = header.argc;
+			data->kwargs = header.kwargs;
+			data->unlimit_args = header.unlimit_args;
+			data->unlimit_kwargs = header.unlimit_kwargs;
+			data->function = raw_func;
+			return CreateYPtr(type_built_in_function, data);
+		}
+
+		YPtr CreateList(List&& data = List())
+		{
+			return CreateYPtr(type_list, new List(data));
+		}
+		YPtr CreateDict(Dict&& data = Dict())
+		{
+			return CreateYPtr(type_dict, new Dict(data));
+		}
+		YPtr CreateObject(String&& data = String())
+		{
+			return CreateYPtr(type_object, new String(data));
+		}
+
+		YPtr CallFunction(YPtr func, List& args, Attributes& kwargs)
+		{
+			if (func->CompareType("built_in_function"))
 			{
-				if (CompareType(arg->type, global->type_built_in_method))
+				BuiltInFunction bf = func->AsBuiltInFunction();
+				if (!bf.unlimit_args)
 				{
-					std::cout << "<built-in method>";
-					continue;
+					if (args.size() != bf.argc)
+						throw "Argument(s) size isn't match";
 				}
-				std::cout << *(String*)global->call_built_in_method(arg->type->get_attr("__repr__")->data, arg, global->const_null, global->const_null)->data << " ";
-				//auto type = global->call_built_in_method(arg->get_attr("__type__")->data, arg, global->const_null, global->const_null);
-				//std::cout << *(String*)global->call_built_in_method(type->get_attr("__repr__")->data, type, global->const_null, global->const_null)->data << " ";
+				if (!bf.unlimit_kwargs)
+				{
+					for (auto kwarg : kwargs)
+					{
+						bool is_match = false;
+						for (auto expect_kwarg : bf.kwargs)
+						{
+							if (expect_kwarg.key == kwarg.key)
+							{
+								is_match = true;
+								break;
+							}
+						}
+						if (!is_match)
+							throw "Unknown Keword argument(s) exist";
+					}
+				}
+				return bf.function(this, args, kwargs);
 			}
-			std::cout << "\r\n";
-			return global->const_null;
-		};
+			else throw "Exception";
+		}
+
+		bool CompareType(YPtr lhs, YPtr rhs)
+		{
+			return lhs->CompareType(String(rhs->GetType()->AsStr()));
+		}
+
+		YPtr RunOperator(const String&& op_name, YPtr self)
+		{
+			auto func = self->GetType()->get_attr(op_name);
+			auto args = List();
+			auto kwargs = Attributes();
+
+			args.push_back(self);
+			return CallFunction(func, args, kwargs);
+		}
+
+		YPtr RunOperator(const String&& op_name, YPtr self, YPtr other)
+		{
+			auto func = self->GetType()->get_attr(op_name);
+			auto args = List();
+			auto kwargs = Attributes();
+
+			args.push_back(self);
+			args.push_back(other);
+			return CallFunction(func, args, kwargs);
+		}
 
 		GlobalBinding();
 
 	private:
 		void assign_built_in(const std::string value_name, YPtr object);
+		YPtr CreateYPtr(YPtr type, void* value)
+		{
+			return std::make_shared<YObject>(type, value);
+		}
+
+		void BuildType(YPtr& type);
+		void BuildBool(YPtr& type);
+		void BuildNull(YPtr& type);
+		void BuildI32(YPtr& type);
+		void BuildF32(YPtr& type);
+		void BuildStr(YPtr& type);
+		void BuildException(YPtr& type);
+		void BuildList(YPtr& type);
+		void BuildDict(YPtr& type);
+		void BuildObject(YPtr& type);
+		void BuildFunctions();
 	};
-	typedef std::function<YPtr(GlobalBinding*, YPtr, YPtr)> BuiltInFunction;
-	typedef std::function<YPtr(GlobalBinding*, YPtr, YPtr, YPtr)> BuiltInMethod;
 	std::string string_encode(const std::string& src);
 	std::string literal_encode(const std::string& src);
 
@@ -347,12 +500,7 @@ namespace YScript
 			Lexer lexer(content.cbegin(), content.cend());
 			LogicBuilder logic_builder(lexer.tokens);
 			Assembler assembler{ logic_builder.logic };
-			//try {
 			Executor executor{ &global, "file" , assembler.bytecodes };
-			//}
-			//catch (std::exception e) {
-//				e.what();
-			//}
 		}
 	private:
 		GlobalBinding global = {};

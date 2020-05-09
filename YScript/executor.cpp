@@ -2,7 +2,7 @@
 
 using namespace YScript;
 
-//#define DEBUG_EXECUTER
+#define DEBUG_EXECUTER
 //#define DEBUG_EXECUTER_STACK
 
 Executor::Executor(GlobalBinding* const  global, const std::string& namespace_name, const Code& bytecodes)
@@ -24,21 +24,30 @@ Executor::Executor(GlobalBinding* const  global, const std::string& namespace_na
 		}
 		else if (command == "STORE_VALUE")
 		{
-			global->value_map[argument.size()][argument] = stack.top();
+			global->local_value_map[namespace_name][argument.size()][argument] = stack.top();
 			stack.pop();
 		}
 		else if (command == "PUSH_VALUE")
 		{
-			if (auto itr = global->value_map.find(argument.size()); itr == global->value_map.end())
+		find_from_local:;
+			if (auto itr = local_value_map->find(argument.size()); itr == local_value_map->end())
+				goto find_from_global;
+			if (auto page = (*local_value_map)[argument.size()]; page.find(argument) == page.end())
+				goto find_from_global;
+			stack.push((*local_value_map)[argument.size()][argument]);
+			goto end;
+		find_from_global:;
+			if (auto itr = global->global_value_map.find(argument.size()); itr == global->global_value_map.end())
 				throw std::exception(("Undefined Variable " + argument).c_str());
-			if (auto page = global->value_map[argument.size()]; page.find(argument) == page.end())
+			if (auto page = global->global_value_map[argument.size()]; page.find(argument) == page.end())
 				throw std::exception(("Undefined Variable " + argument).c_str());
 
-			stack.push(global->value_map[argument.size()][argument]);
+			stack.push(global->global_value_map[argument.size()][argument]);
+		end:;
 		}
 		else if (command == "BUILD_DICT")
 		{
-			stack.push(global->new_dict(Dict()));
+			stack.push(global->CreateDict());
 		}
 		else if (command == "BUILD_LIST")
 		{
@@ -55,16 +64,19 @@ Executor::Executor(GlobalBinding* const  global, const std::string& namespace_na
 				reverse_stack.pop();
 			}
 
-			stack.push(global->new_list(list));
+			stack.push(global->CreateList(List{ list }));
 		}
 		else if (command == "IF_FALSE_JUMP")
 		{
 			auto value = stack.top();
-			auto obj = global->call_built_in_function(global->type_bool->get_attr("__new__")->data, global->const_null, global->const_null);
+			bool jump = false;
 
-			global->call_built_in_method(obj->get_attr("__init__")->data, obj,
-				global->new_list(List{ value }), global->const_null);
-			if (!*(bool*)obj->data)
+			if (value->CompareType("bool"))
+				jump = !value->AsBool();
+			else if (value->CompareType("null"))
+				jump = true;
+
+			if (jump)
 				k = std::stoull(argument) - 1;
 			stack.pop();
 			while (!stack.empty()) stack.pop();
@@ -95,12 +107,18 @@ Executor::Executor(GlobalBinding* const  global, const std::string& namespace_na
 
 				auto lhs = stack.top();
 				stack.pop();
-				stack.push(global->call_built_in_method(lhs->get_attr(itr->second)->data,
-					lhs, global->new_list(List{ rhs }), global->const_null));
+
+				auto args = List();
+				auto kwargs = Attributes();
+
+				args.push_back(lhs);
+				args.push_back(rhs);
+
+				stack.push(global->RunOperator(String(itr->second), lhs, rhs));
 			}
 			else throw std::exception(("Unknown Operator " + argument).c_str());
 		}
-		else if (command == "CALL")
+		else if (command == "CALL" || command == "CALL_METHOD")
 		{
 			std::string buf = argument;
 			std::list<String> keywords;
@@ -112,93 +130,43 @@ Executor::Executor(GlobalBinding* const  global, const std::string& namespace_na
 
 			uint64_t argc = std::stoull(*keywords.begin());
 			keywords.pop_front();
-
-			auto list = List();
-			auto dict = Dict();
-
 			argc -= keywords.size();
+
+			String method_name = "unknown";
+			if (command == "CALL_METHOD")
+			{
+				method_name = *keywords.begin();
+				keywords.pop_front();
+			}
+			auto args = List();
+			auto kwargs = Attributes();
+
 			for (auto keyword : keywords)
 			{
-				dict.push_back(std::make_pair(global->new_str(keyword), stack.top()));
+				kwargs.push_back(Attribute{ keyword, stack.top() });
 				stack.pop();
 			}
+			std::list<YPtr> buffer;
+			for (; argc > 1; --argc)
 			{
-				std::list<YPtr> buffer;
-				for (; argc > 1; --argc)
-				{
-					buffer.push_front(stack.top());
-					stack.pop();
-				}
-				for (auto arg : buffer)
-				{
-					list.push_back(arg);
-				}
-			}
-
-			YPtr obj = stack.top(); stack.pop();
-			if (CompareType(obj->type, global->type_built_in_function))
-			{
-				if (obj->data != nullptr)
-				{
-					stack.push((*(BuiltInFunction*)obj->data)(global, global->new_list(list), global->new_dict(dict)));
-				}
-				else throw std::exception("Unknown Built in Function ");
-			}
-			else if (CompareType(obj->type, global->type_type))
-			{
-				auto new_obj = (*(BuiltInFunction*)obj->get_attr("__new__")->data)(global, global->const_null, global->const_null);
-				stack.push((*(BuiltInFunction*)new_obj->get_attr("__init__")->data)(global, global->new_list(list), global->new_dict(dict)));
-			}
-			else throw std::exception("This type is not callable");
-		}
-		else if (command == "CALL_METHOD")
-		{
-			std::string buf = argument;
-			std::list<String> keywords;
-			for (size_t pos = buf.find(';'); pos != -1; pos = buf.find(';'))
-			{
-				keywords.push_back(buf.substr(0, pos));
-				buf = buf.substr(pos + 1);
-			}
-
-			uint64_t argc = std::stoull(*keywords.begin());
-			keywords.pop_front();
-			String method_name = *keywords.begin();
-			keywords.pop_front();
-
-			auto list = List();
-			auto dict = Dict();
-
-			argc -= keywords.size() + 1;
-			for (auto keyword : keywords)
-			{
-				dict.push_back(std::make_pair(global->new_str(keyword), stack.top()));
+				buffer.push_front(stack.top());
 				stack.pop();
 			}
-			{
-				std::list<YPtr> buffer;
-				for (; argc > 1; --argc)
-				{
-					buffer.push_front(stack.top());
-					stack.pop();
-				}
-				for (auto arg : buffer)
-				{
-					list.push_back(arg);
-				}
-			}
 
-			YPtr self = stack.top(); stack.pop();
-			YPtr method = self->get_attr(method_name);
-			if (method->type == global->type_built_in_method)
+			YPtr func = nullptr;
+			if (command == "CALL_METHOD")
 			{
-				if (method->data != nullptr)
-				{
-					stack.push((*(BuiltInMethod*)method->data)(global, self, global->new_list(list), global->new_dict(dict)));
-				}
-				else throw std::exception("Unknown Built in Method ");
+				YPtr self = stack.top(); stack.pop();
+				args.push_back(self);
+				func = self->get_attr(method_name);
 			}
-			else throw std::exception("This type is not method");
+			else func = stack.top(); stack.pop();
+
+			for (auto arg : buffer)
+			{
+				args.push_back(arg);
+			}
+			stack.push(global->CallFunction(func, args, kwargs));
 		}
 		else if (command == "CLEAR_STACK")
 		{
@@ -212,14 +180,14 @@ Executor::Executor(GlobalBinding* const  global, const std::string& namespace_na
 		}
 		else if (command == "GET_SUBSRPT")
 		{
-			std::deque<YPtr> args;
+			std::deque<YPtr> indexes;
 			YPtr obj = global->const_null;
 			uint64_t dimention = std::stoull(argument) - 1;
 			for (uint64_t k = dimention;; --k)
 			{
 				if (k > 0)
 				{
-					args.push_front(stack.top());
+					indexes.push_front(stack.top());
 					stack.pop();
 				}
 				else
@@ -230,10 +198,14 @@ Executor::Executor(GlobalBinding* const  global, const std::string& namespace_na
 				}
 			}
 
-			auto list = List();
-			for (auto arg : args) list.push_back(arg);
+			auto args_obj = global->CreateList();
+			List& args = args_obj->AsList();
+			auto kwargs = Attributes();
 
-			stack.push((*(BuiltInMethod*)obj->get_attr("__getitem__")->data)(global, obj, global->new_list(list), global->const_null));
+			for (YPtr index : indexes)
+				args.push_back(index);
+
+			stack.push(global->RunOperator("__getitem__", obj, args_obj));
 		}
 		else throw std::exception("Unknown command");
 
