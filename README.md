@@ -1,4 +1,24 @@
 # YScript
+### 파일로 실행하기
+```bash
+yscript sample.js
+<type 'i32'>
+1
+<type 'i32'>
+<type 'i32'>
+1
+2
+3
+5
+```
+### 대화형으로 실행하기
+```bash
+yscript
+>>> function main(){print(123);}
+...
+123
+>>> 
+```
 
 # YJS(YScript is Joyful Script)
 ## YJS 000 전체 구조
