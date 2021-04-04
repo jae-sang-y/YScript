@@ -1,9 +1,7 @@
 #include "yscript.hpp"
 
+//#define DEBUG_EXECUTER
 using namespace YScript;
-
-#define DEBUG_EXECUTER
-//#define DEBUG_EXECUTER_STACK
 
 Executor::Executor(GlobalBinding* const  global, const std::string& namespace_name, const Code& bytecodes)
 {
@@ -230,4 +228,4 @@ Executor::Executor(GlobalBinding* const  global, const std::string& namespace_na
 
 	if (!stack.empty())
 		throw std::exception("Stack isn't empty");
-}
+	}

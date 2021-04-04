@@ -13,8 +13,6 @@
 #define NEW new
 #endif
 
-#define DEBUG_YOBJECT
-
 #ifndef __YSCRIPT__
 
 namespace YScript

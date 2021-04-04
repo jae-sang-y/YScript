@@ -441,6 +441,7 @@ namespace YScript
 		BuildBool(type_exception);
 		BuildI32(type_i32);
 		BuildF32(type_f32);
+		BuildStr(type_str);
 		BuildList(type_list);
 		BuildDict(type_dict);
 		BuildObject(type_object);

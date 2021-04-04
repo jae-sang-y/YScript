@@ -2,8 +2,8 @@
 
 using namespace YScript;
 
-//#define DEBUG_LEXER
-//#define DEBUG_LEXER_SHOW_LEFTOVER
+// #define DEBUG_LEXER
+// #define DEBUG_LEXER_SHOW_LEFTOVER
 
 inline bool is_num(const char& ch)
 {
